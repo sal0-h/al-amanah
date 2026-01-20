@@ -24,3 +24,5 @@ class User(Base):
     
     # Relationships
     team = relationship("Team")
+    comments = relationship("TaskComment", back_populates="user", cascade="all, delete-orphan")
+    audit_logs = relationship("AuditLog", back_populates="user")

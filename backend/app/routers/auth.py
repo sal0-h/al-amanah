@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import User
 from app.schemas import UserLogin, UserOut
 from app.middleware.auth import (
-    verify_password, 
+    verify_password,
+    hash_password,
     create_session_token, 
     get_current_user,
     SESSION_MAX_AGE
@@ -57,3 +59,30 @@ async def logout(response: Response):
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):
     return user_to_out(current_user)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Change the current user's password."""
+    # Verify current password
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Validate new password
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    
+    # Update password
+    current_user.password_hash = hash_password(data.new_password)
+    db.commit()
+    
+    return {"message": "Password changed successfully"}

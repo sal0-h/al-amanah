@@ -9,6 +9,7 @@ from app.schemas import TaskCreate, TaskUpdate, TaskOut, TaskCannotDo, TaskRemin
 from app.schemas.task import AssigneeInfo
 from app.middleware.auth import get_current_user, get_admin_user
 from app.services.discord import send_admin_alert, send_reminder
+from app.services.audit import log_action
 
 router = APIRouter(prefix="/api", tags=["tasks"])
 
@@ -209,6 +210,18 @@ async def mark_task_done(
     
     task.status = TaskStatus.DONE
     task.completed_by = current_user.id  # Track who completed it
+    
+    # Audit log
+    log_action(
+        db=db,
+        action="TASK_DONE",
+        entity_type="task",
+        entity_id=task.id,
+        entity_name=task.title,
+        user_id=current_user.id,
+        details=f"Marked task as done"
+    )
+    
     db.commit()
     db.refresh(task)
     return task_to_out(task, db)
@@ -232,6 +245,18 @@ async def mark_task_cannot_do(
     task.status = TaskStatus.CANNOT_DO
     task.cannot_do_reason = data.reason
     task.completed_by = current_user.id  # Track who flagged it
+    
+    # Audit log
+    log_action(
+        db=db,
+        action="TASK_CANNOT_DO",
+        entity_type="task",
+        entity_id=task.id,
+        entity_name=task.title,
+        user_id=current_user.id,
+        details=f"Reason: {data.reason}"
+    )
+    
     db.commit()
     db.refresh(task)
     
@@ -265,9 +290,22 @@ async def undo_task_status(
     if not can_modify_task(task, current_user, db):
         raise HTTPException(status_code=403, detail="Not authorized to modify this task")
     
+    previous_status = task.status.value
     task.status = TaskStatus.PENDING
     task.cannot_do_reason = None
     task.completed_by = None  # Clear completer
+    
+    # Audit log
+    log_action(
+        db=db,
+        action="TASK_UNDO",
+        entity_type="task",
+        entity_id=task.id,
+        entity_name=task.title,
+        user_id=current_user.id,
+        details=f"Reset from {previous_status} to PENDING"
+    )
+    
     db.commit()
     db.refresh(task)
     return task_to_out(task, db)

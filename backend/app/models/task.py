@@ -55,3 +55,4 @@ class Task(Base):
     completer = relationship("User", foreign_keys=[completed_by])
     assigned_team = relationship("Team")
     assignments = relationship("TaskAssignment", back_populates="task", cascade="all, delete-orphan")
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")

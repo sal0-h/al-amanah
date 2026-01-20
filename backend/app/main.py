@@ -18,7 +18,11 @@ from app.routers import (
     dashboard_router,
     templates_router,
     roster_router,
-    teams_router
+    teams_router,
+    comments_router,
+    audit_router,
+    stats_router,
+    export_router
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -88,6 +92,10 @@ app.include_router(dashboard_router)
 app.include_router(templates_router)
 app.include_router(roster_router)
 app.include_router(teams_router)
+app.include_router(comments_router)
+app.include_router(audit_router)
+app.include_router(stats_router)
+app.include_router(export_router)
 
 
 @app.get("/api/health")

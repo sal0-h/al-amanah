@@ -24,6 +24,10 @@ async def create_semester(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
+    # If this semester is active, deactivate all others
+    if semester_data.is_active:
+        db.query(Semester).filter(Semester.is_active == True).update({"is_active": False})
+    
     semester = Semester(**semester_data.model_dump())
     db.add(semester)
     db.commit()
@@ -42,7 +46,16 @@ async def update_semester(
     if not semester:
         raise HTTPException(status_code=404, detail="Semester not found")
     
-    for key, value in semester_data.model_dump(exclude_unset=True).items():
+    update_dict = semester_data.model_dump(exclude_unset=True)
+    
+    # If setting this semester to active, deactivate all others first
+    if update_dict.get("is_active") == True:
+        db.query(Semester).filter(
+            Semester.is_active == True, 
+            Semester.id != semester_id
+        ).update({"is_active": False})
+    
+    for key, value in update_dict.items():
         setattr(semester, key, value)
     
     db.commit()

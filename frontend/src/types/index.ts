@@ -77,3 +77,84 @@ export interface DashboardWeek extends Week {
 export interface DashboardEvent extends Event {
   tasks: Task[];
 }
+
+// Comments
+export interface TaskComment {
+  id: number;
+  task_id: number;
+  user_id: number;
+  user_name: string;
+  content: string;
+  created_at: string;
+  can_delete: boolean;
+}
+
+// Audit Log
+export interface AuditLog {
+  id: number;
+  user_id: number | null;
+  user_name: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: number | null;
+  entity_name: string | null;
+  details: string | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface AuditLogPage {
+  items: AuditLog[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+// Statistics
+export interface OverviewStats {
+  total_users: number;
+  total_semesters: number;
+  total_events: number;
+  total_tasks: number;
+  tasks_completed: number;
+  tasks_pending: number;
+  tasks_cannot_do: number;
+  completion_rate: number;
+}
+
+export interface UserStats {
+  user_id: number;
+  display_name: string;
+  team_name: string | null;
+  tasks_assigned: number;
+  tasks_completed: number;
+  tasks_cannot_do: number;
+  completion_rate: number;
+}
+
+export interface TeamStats {
+  team_id: number;
+  team_name: string;
+  member_count: number;
+  tasks_assigned: number;
+  tasks_completed: number;
+  completion_rate: number;
+}
+
+export interface SemesterStats {
+  semester_id: number;
+  semester_name: string;
+  weeks_count: number;
+  events_count: number;
+  tasks_count: number;
+  tasks_completed: number;
+  completion_rate: number;
+}
+
+export interface WeeklyActivity {
+  week_number: number;
+  start_date: string;
+  tasks_created: number;
+  tasks_completed: number;
+}

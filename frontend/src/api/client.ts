@@ -1,4 +1,7 @@
-import type { User, Semester, Week, Event, Task, DashboardData, Team } from '../types';
+import type { 
+  User, Semester, Week, Event, Task, DashboardData, Team,
+  TaskComment, AuditLogPage, OverviewStats, UserStats, TeamStats, SemesterStats, WeeklyActivity
+} from '../types';
 
 const API_BASE = '/api';
 
@@ -40,6 +43,12 @@ export const logout = () =>
 
 export const getMe = () => 
   request<User>('/auth/me');
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  request<{ message: string }>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+  });
 
 // Dashboard
 export const getDashboard = () => 
@@ -83,6 +92,9 @@ export const updateEvent = (id: number, data: Partial<Event>) =>
 
 export const deleteEvent = (id: number) => 
   request<void>(`/events/${id}`, { method: 'DELETE' });
+
+export const sendEventReminders = (eventId: number) => 
+  request<{ message: string; reminders_sent: number }>(`/events/${eventId}/send-all-reminders`, { method: 'POST' });
 
 // Tasks
 export const getTasks = (eventId: number) => 
@@ -284,3 +296,96 @@ export const addAllToRoster = (semesterId: number) =>
 
 export const removeFromRoster = (semesterId: number, userId: number) =>
   request<void>(`/semesters/${semesterId}/roster/${userId}`, { method: 'DELETE' });
+
+// Task Comments
+export const getTaskComments = (taskId: number) =>
+  request<TaskComment[]>(`/tasks/${taskId}/comments`);
+
+export const addTaskComment = (taskId: number, content: string) =>
+  request<TaskComment>(`/tasks/${taskId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ content })
+  });
+
+export const deleteTaskComment = (taskId: number, commentId: number) =>
+  request<void>(`/tasks/${taskId}/comments/${commentId}`, { method: 'DELETE' });
+
+// Audit Logs
+export const getAuditLogs = (params?: {
+  page?: number;
+  per_page?: number;
+  action?: string;
+  entity_type?: string;
+  user_id?: number;
+}) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.per_page) query.append('per_page', params.per_page.toString());
+  if (params?.action) query.append('action', params.action);
+  if (params?.entity_type) query.append('entity_type', params.entity_type);
+  if (params?.user_id) query.append('user_id', params.user_id.toString());
+  return request<AuditLogPage>(`/audit?${query.toString()}`);
+};
+
+export const getAuditActions = () =>
+  request<string[]>('/audit/actions');
+
+export const getAuditEntityTypes = () =>
+  request<string[]>('/audit/entities');
+
+// Statistics
+export interface ActiveSemesterInfo {
+  id: number | null;
+  name: string | null;
+}
+
+export const getActiveSemester = () =>
+  request<ActiveSemesterInfo>('/stats/active-semester');
+
+export const getOverviewStats = (semesterId?: number) => {
+  const query = semesterId ? `?semester_id=${semesterId}` : '';
+  return request<OverviewStats>(`/stats/overview${query}`);
+};
+
+export const getUserStats = (semesterId?: number) => {
+  const query = semesterId ? `?semester_id=${semesterId}` : '';
+  return request<UserStats[]>(`/stats/users${query}`);
+};
+
+export const getTeamStats = (semesterId?: number) => {
+  const query = semesterId ? `?semester_id=${semesterId}` : '';
+  return request<TeamStats[]>(`/stats/teams${query}`);
+};
+
+export const getSemesterStats = () =>
+  request<SemesterStats[]>('/stats/semesters');
+
+export const getWeeklyActivity = (semesterId: number) =>
+  request<WeeklyActivity[]>(`/stats/activity?semester_id=${semesterId}`);
+
+// Export/Import
+export interface ExportData {
+  exported_at: string;
+  version: string;
+  semesters: unknown[];
+}
+
+export interface ImportResult {
+  semesters_created: number;
+  weeks_created: number;
+  events_created: number;
+  tasks_created: number;
+  errors: string[];
+}
+
+export const exportSemester = (semesterId: number) =>
+  request<ExportData>(`/export/semester/${semesterId}`);
+
+export const exportAll = () =>
+  request<ExportData>('/export/all');
+
+export const importData = (data: ExportData, skipExisting = true) =>
+  request<ImportResult>(`/export/import?skip_existing=${skipExisting}`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
