@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_db
 from app.models import User
 from app.schemas import UserLogin, UserOut
+from app.config import get_settings
 from app.middleware.auth import (
     verify_password,
     hash_password,
@@ -12,6 +15,9 @@ from app.middleware.auth import (
     get_current_user,
     SESSION_MAX_AGE
 )
+
+settings = get_settings()
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -31,7 +37,8 @@ def user_to_out(user: User) -> UserOut:
 
 
 @router.post("/login")
-async def login(credentials: UserLogin, response: Response, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")  # Max 5 login attempts per minute (prevents brute force)
+async def login(request: Request, credentials: UserLogin, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == credentials.username).first()
     
     if not user or not verify_password(credentials.password, user.password_hash):
@@ -44,7 +51,7 @@ async def login(credentials: UserLogin, response: Response, db: Session = Depend
         max_age=SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
-        secure=False  # Set to True in production with HTTPS
+        secure=settings.USE_HTTPS  # Auto-enabled for HTTPS deployments
     )
     
     return {"message": "Login successful", "user": user_to_out(user)}

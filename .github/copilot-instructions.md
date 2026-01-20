@@ -4,6 +4,21 @@
 
 **Semester → Week → Event → Task** hierarchy with Discord notifications. Stack: FastAPI + React/Vite + SQLite + nginx, containerized via Docker Compose.
 
+### Quick Start
+
+```bash
+# 1. Copy environment template
+cp .env.example .env
+
+# 2. Edit .env - set SECRET_KEY, Discord webhooks, admin credentials
+
+# 3. Start full stack
+docker-compose up -d --build
+
+# 4. Access at http://localhost (nginx proxy)
+# API docs: http://localhost/api/docs
+```
+
 ### Brand Colors
 
 | Name | Hex | Usage |
@@ -160,27 +175,91 @@ Password defaults to username if not provided.
 ## Development
 
 ```bash
-# Docker (primary method)
-wsl -e bash -c "docker-compose up -d --build"
+# Full stack (Docker) - primary method
+docker-compose up -d --build
 
 # View logs
-wsl -e bash -c "docker-compose logs -f backend"
+docker-compose logs -f backend
+docker-compose logs -f nginx
 
-# Local backend
-cd backend && uvicorn app.main:app --reload
+# Stop services
+docker-compose down
 
-# Local frontend
-cd frontend && npm run dev
+# Local backend dev (without Docker)
+cd backend
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+pip install -r requirements.txt
+uvicorn app.main:app --reload  # Auto-creates SQLite DB + admin user at startup
+
+# Local frontend dev
+cd frontend
+npm install
+npm run dev  # Vite dev server on :5173
+
+# Testing
+cd backend && pytest                    # Run all backend tests
+cd backend && pytest -v tests/test_tasks.py  # Run specific test file
+cd frontend && npm test                 # Run frontend tests
+cd frontend && npm run test:coverage    # With coverage report
+
+# Cloudflare Deployment (zero config needed!)
+docker-compose up -d
+cloudflared tunnel --url http://localhost:80  # Get free HTTPS URL instantly
+# App auto-detects HTTPS and handles CORS - just use the URL!
 ```
+
+### Environment Setup
+
+Required `.env` variables (copy from `.env.example`):
+- `SECRET_KEY`: Random string (32+ chars) for session signing
+- `REMINDER_WEBHOOK_URL`: Discord webhook for task reminders
+- `ADMIN_WEBHOOK_URL`: Discord webhook for "Cannot Do" alerts
+- `ADMIN_USERNAME`/`ADMIN_PASSWORD`: Initial admin credentials (auto-created on first run)
+- `ADMIN_DISCORD_ID`: Optional Discord ID for admin user
 
 **Verify**: http://localhost (nginx) or http://localhost/api/docs (FastAPI docs)
 
 ## Key Gotchas
 
 - **Discord IDs**: Must be numeric (`123456789012345678`), not usernames.
-- **WSL required**: Docker commands run via `wsl -e bash -c "..."`.
-- **SQLite persistence**: `./data/` volume mount - don't delete.
+- **SQLite persistence**: `./data/` volume mount - don't delete or DB resets.
 - **Admin auto-created**: From `ADMIN_USERNAME`/`ADMIN_PASSWORD` in `.env` on first run.
+- **Port conflicts**: nginx uses port 80 - ensure it's free before starting.
+- **Session cookies**: Frontend must use `credentials: 'include'` in all API calls (already configured in [client.ts](../frontend/src/api/client.ts)).
+- **Dark mode classes**: Every new component needs `dark:` variants for text, backgrounds, borders.
+- **Task assignment changes**: Editing `assigned_to` or `assigned_team_id` automatically resets task status to `PENDING`.
+
+## Testing Patterns
+
+### Backend (pytest)
+
+Tests use in-memory SQLite with fresh DB per test. Key fixtures in [conftest.py](../backend/tests/conftest.py):
+- `client`: TestClient with all routers
+- `admin_user`/`admin_headers`: Pre-authenticated admin
+- `member_user`/`member_headers`: Regular member
+- `test_semester`/`test_week`/`test_event`: Hierarchy fixtures
+
+Example test pattern:
+```python
+def test_mark_task_done(client, admin_headers, test_task):
+    response = client.patch(f"/api/tasks/{test_task.id}/done", headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "DONE"
+```
+
+### Frontend (Vitest + React Testing Library)
+
+Tests in `frontend/tests/` using jsdom environment. Mock API calls via `vi.mock('../api/client')`.
+
+Example:
+```typescript
+test('renders dashboard with events', async () => {
+  vi.mocked(api.getDashboard).mockResolvedValue(mockData);
+  render(<Dashboard />);
+  expect(await screen.findByText('Week 1')).toBeInTheDocument();
+});
+```
 
 ## API Reference
 

@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.database import Base, engine, SessionLocal
 from app.config import get_settings
@@ -28,6 +31,25 @@ from app.routers import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# Rate limiter - prevents abuse while allowing normal usage
+limiter = Limiter(key_func=get_remote_address)
+
+
+# Smart CORS: Allow the actual origin when it's HTTPS (Cloudflare) or localhost (dev)
+def get_allowed_origins():
+    """
+    Get allowed CORS origins based on environment.
+    - Local dev: localhost origins
+    - Production: Allow any HTTPS origin (safe because Cloudflare enforces HTTPS)
+    """
+    if settings.DEBUG:
+        # Dev mode: localhost only
+        return ["http://localhost:5173", "http://localhost:3000", "http://localhost"]
+    else:
+        # Production: Allow any HTTPS origin (they come through Cloudflare tunnel which enforces HTTPS)
+        # For security: only allow HTTPS in production
+        return ["https://*"]
 
 
 def init_db():
@@ -72,10 +94,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware (for development)
+# Add rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS middleware - allows requests from configured frontend
+allowed_origins = get_allowed_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

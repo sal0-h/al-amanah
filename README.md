@@ -254,4 +254,4 @@ View audit logs in Admin Panel → Audit Logs tab.
 
 ---
 
-**CMU Qatar Muslim Student Association** | Built with ❤️
+**CMU Qatar Muslim Student Association**

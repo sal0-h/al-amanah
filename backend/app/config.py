@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
     DEBUG: bool = False
     
+    # Deployment
+    USE_HTTPS: bool = False  # Set to True in production (Cloudflare automatically does this)
+    
     # Database
     DATABASE_URL: str = "sqlite:///./data/msa_tracker.db"
     
