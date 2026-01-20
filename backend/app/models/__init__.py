@@ -6,6 +6,7 @@ from app.models.event import Event
 from app.models.task import Task, TaskType, TaskStatus
 from app.models.task_assignment import TaskAssignment
 from app.models.roster import RosterMember
+from app.models.template import EventTemplate, WeekTemplate, WeekTemplateEvent
 
 __all__ = [
     "Team",
@@ -13,5 +14,6 @@ __all__ = [
     "Semester", "Week", "Event",
     "Task", "TaskType", "TaskStatus",
     "TaskAssignment",
-    "RosterMember"
+    "RosterMember",
+    "EventTemplate", "WeekTemplate", "WeekTemplateEvent"
 ]

@@ -168,10 +168,31 @@ export interface EventTemplate {
   name: string;
   default_location: string | null;
   tasks: TaskTemplate[];
+  is_custom: boolean;
 }
+
+export const getEventTemplates = () => 
+  request<EventTemplate[]>('/templates/events');
 
 export const getTemplates = () => 
   request<EventTemplate[]>('/templates');
+
+export const createEventTemplate = (data: {
+  name: string;
+  default_location?: string;
+  tasks: TaskTemplate[];
+}) =>
+  request<EventTemplate>('/templates/events', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateEventTemplate = (id: number, data: {
+  name?: string;
+  default_location?: string;
+  tasks?: TaskTemplate[];
+}) =>
+  request<EventTemplate>(`/templates/events/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteEventTemplate = (id: number) =>
+  request<void>(`/templates/events/${id}`, { method: 'DELETE' });
 
 export const createFromTemplate = (data: {
   template_id: string;
@@ -181,6 +202,50 @@ export const createFromTemplate = (data: {
   event_name?: string;
 }) => 
   request<{ message: string; event_id: number }>('/templates/create', { 
+    method: 'POST', 
+    body: JSON.stringify(data) 
+  });
+
+// Week Templates
+export interface WeekEventTemplate {
+  event_template_id: string;
+  day_of_week: number;
+  default_time: string;
+}
+
+export interface WeekTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  events: WeekEventTemplate[];
+  is_custom: boolean;
+}
+
+export const getWeekTemplates = () => 
+  request<WeekTemplate[]>('/templates/weeks');
+
+export const createWeekTemplate = (data: {
+  name: string;
+  description?: string;
+  events: WeekEventTemplate[];
+}) =>
+  request<WeekTemplate>('/templates/weeks', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateWeekTemplate = (id: number, data: {
+  name?: string;
+  description?: string;
+  events?: WeekEventTemplate[];
+}) =>
+  request<WeekTemplate>(`/templates/weeks/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteWeekTemplate = (id: number) =>
+  request<void>(`/templates/weeks/${id}`, { method: 'DELETE' });
+
+export const createFromWeekTemplate = (data: {
+  week_template_id: string;
+  week_id: number;
+}) => 
+  request<{ message: string; events: string[] }>('/templates/weeks/create', { 
     method: 'POST', 
     body: JSON.stringify(data) 
   });

@@ -7,18 +7,35 @@ export default {
   theme: {
     extend: {
       colors: {
+        // MSA Brand Colors
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#f5b8b8',
+          300: '#eb8989',
+          400: '#e05050',
+          500: '#C4122F',  // Main Crimson
+          600: '#b01029',
+          700: '#9c0e24',
+          800: '#850c1f',
+          900: '#6e0a19',
         },
+        accent: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#FDB913',  // Main Amber Gold
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
+        },
+      },
+      fontFamily: {
+        serif: ['Playfair Display', 'Merriweather', 'Georgia', 'serif'],
+        sans: ['Inter', 'Roboto', 'system-ui', 'sans-serif'],
       },
     },
   },

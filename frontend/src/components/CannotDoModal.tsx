@@ -22,10 +22,10 @@ export default function CannotDoModal({ isOpen, onClose, onSubmit, loading }: Ca
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-md w-full p-6">
+      <div className="bg-white rounded-xl max-w-md w-full p-6 border-t-4 border-accent-400 shadow-lg">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Mark as Cannot Do</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h3 className="text-lg font-serif font-semibold text-gray-900">Mark as Cannot Do</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -39,7 +39,7 @@ export default function CannotDoModal({ isOpen, onClose, onSubmit, loading }: Ca
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g., I have an exam that day"
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition resize-none"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-300 focus:border-primary-500 outline-none transition resize-none"
             rows={3}
             required
           />
@@ -48,14 +48,14 @@ export default function CannotDoModal({ isOpen, onClose, onSubmit, loading }: Ca
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 transition"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !reason.trim()}
-              className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-accent-400 text-gray-900 font-medium rounded-lg hover:bg-accent-500 transition disabled:opacity-50"
             >
               {loading ? 'Submitting...' : 'Submit'}
             </button>

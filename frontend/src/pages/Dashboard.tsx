@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogOut, Settings, ChevronDown, ChevronRight, MapPin, Clock, X, AlertTriangle, Check, Wrench, RotateCcw, Send, Calendar } from 'lucide-react';
 import * as api from '../api/client';
 import type { DashboardData, DashboardWeek, DashboardEvent, Task } from '../types';
+import { formatEventDateTime } from '../utils/dateFormat';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -34,15 +35,18 @@ export default function Dashboard() {
   const activeWeek = data?.weeks.find(w => w.id === selectedWeek);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-20">
+      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-primary-700">MSA Task Tracker</h1>
+          <div className="flex items-center gap-3">
+            <img src="/images/MSA_main_clear.png" alt="MSA Logo" className="h-14 w-auto" />
+            <h1 className="text-xl font-serif font-bold text-primary-500">Task Tracker</h1>
+          </div>
           <div className="flex items-center gap-4">
-            {user?.role === 'ADMIN' && <a href="/admin" className="p-2 text-gray-500 hover:text-gray-700"><Settings size={20} /></a>}
-            <span className="text-sm text-gray-600">{user?.display_name}</span>
-            <button onClick={logout} className="p-2 text-gray-500 hover:text-gray-700"><LogOut size={20} /></button>
+            {user?.role === 'ADMIN' && <a href="/admin" className="p-2 text-gray-500 hover:text-primary-500 transition-colors"><Settings size={20} /></a>}
+            <span className="text-sm text-gray-600 font-medium">{user?.display_name}</span>
+            <button onClick={logout} className="p-2 text-gray-500 hover:text-primary-500 transition-colors"><LogOut size={20} /></button>
           </div>
         </div>
       </header>
@@ -52,15 +56,15 @@ export default function Dashboard() {
       ) : (
         <>
           {/* Semester Bar */}
-          <div className="bg-primary-700 text-white py-2">
+          <div className="bg-primary-500 text-white py-3">
             <div className="max-w-5xl mx-auto px-4 flex items-center gap-2">
               <Calendar size={18} />
-              <span className="font-medium">{data.semester_name}</span>
+              <span className="font-serif font-semibold text-lg">{data.semester_name}</span>
             </div>
           </div>
 
           {/* Week Tabs */}
-          <div className="bg-white border-b sticky top-[52px] z-10 overflow-x-auto">
+          <div className="bg-white border-b border-gray-200 sticky top-[52px] z-10 overflow-x-auto shadow-sm">
             <div className="max-w-5xl mx-auto px-4 flex gap-1">
               {data.weeks.map((w) => (
                 <button
@@ -68,12 +72,12 @@ export default function Dashboard() {
                   onClick={() => setSelectedWeek(w.id)}
                   className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                     selectedWeek === w.id 
-                      ? 'border-primary-600 text-primary-700' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary-500 text-primary-500' 
+                      : 'border-transparent text-gray-500 hover:text-primary-400'
                   } ${w.is_current ? 'bg-primary-50' : ''}`}
                 >
                   Week {w.week_number}
-                  {w.is_current && <span className="ml-1 text-xs text-primary-600">●</span>}
+                  {w.is_current && <span className="ml-1 text-xs text-accent-400">●</span>}
                 </button>
               ))}
             </div>
@@ -105,30 +109,30 @@ function EventCard({ event, refresh }: { event: DashboardEvent; refresh: () => v
   const [expanded, setExpanded] = useState(true);
   
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl border-l-4 border-l-accent-400 border border-gray-200 shadow-md overflow-hidden">
       {/* Event Header */}
       <div 
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 border-b"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-stone-50 border-b border-gray-100 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-3">
-          {expanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+          {expanded ? <ChevronDown size={20} className="text-primary-400" /> : <ChevronRight size={20} className="text-primary-400" />}
           <div>
-            <h3 className="font-semibold text-gray-900">{event.name}</h3>
+            <h3 className="font-serif font-semibold text-gray-900 text-lg">{event.name}</h3>
             <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
-              <span className="flex items-center gap-1"><Clock size={14} />{new Date(event.datetime).toLocaleString()}</span>
-              {event.location && <span className="flex items-center gap-1"><MapPin size={14} />{event.location}</span>}
+              <span className="flex items-center gap-1"><Clock size={14} className="text-primary-400" />{formatEventDateTime(event.datetime)}</span>
+              {event.location && <span className="flex items-center gap-1"><MapPin size={14} className="text-primary-400" />{event.location}</span>}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500">{event.tasks.filter(t => t.status === 'DONE').length}/{event.tasks.length} done</span>
+          <span className="px-2 py-1 bg-stone-100 rounded-full text-gray-600 font-medium">{event.tasks.filter(t => t.status === 'DONE').length}/{event.tasks.length} done</span>
         </div>
       </div>
 
       {/* Tasks - Flat List */}
       {expanded && (
-        <div className="divide-y">
+        <div className="divide-y divide-gray-100">
           {event.tasks.length === 0 ? (
             <p className="text-gray-500 text-sm p-4">No tasks for this event.</p>
           ) : (
@@ -181,11 +185,11 @@ function TaskRow({ task, refresh }: { task: Task; refresh: () => void }) {
     setBusy(false);
   };
 
-  const bg = task.status === 'DONE' ? 'bg-green-50 border-green-200' : task.status === 'CANNOT_DO' ? 'bg-amber-50 border-amber-200' : 'bg-white';
+  const bg = task.status === 'DONE' ? 'bg-green-50' : task.status === 'CANNOT_DO' ? 'bg-amber-50' : 'bg-white';
 
   return (
     <>
-      <div className={`flex items-start justify-between p-3 rounded-lg border ${bg}`}>
+      <div className={`flex items-start justify-between p-3 ${bg} hover:bg-stone-50 transition-colors`}>
         <div className="flex items-start gap-3">
           {task.task_type === 'SETUP' ? <Wrench size={20} className="text-gray-400 mt-0.5" />
             : task.status === 'DONE' ? (
@@ -198,9 +202,9 @@ function TaskRow({ task, refresh }: { task: Task; refresh: () => void }) {
                 <AlertTriangle size={20} className="mt-0.5" />
               </button>
             )
-            : <button onClick={markDone} disabled={!canAct || busy} className="w-5 h-5 border-2 rounded mt-0.5 hover:border-primary-500 disabled:opacity-50" />}
+            : <button onClick={markDone} disabled={!canAct || busy} className="w-5 h-5 border-2 border-gray-300 rounded mt-0.5 hover:border-primary-500 hover:bg-primary-50 disabled:opacity-50 transition-colors" />}
           <div>
-            <p className={task.status === 'DONE' ? 'line-through text-gray-400' : 'font-medium'}>{task.task_type === 'SETUP' && '[Setup] '}{task.title}</p>
+            <p className={task.status === 'DONE' ? 'line-through text-gray-400' : 'font-medium text-gray-800'}>{task.task_type === 'SETUP' && <span className="text-primary-400">[Setup] </span>}{task.title}</p>
             <p className="text-sm text-gray-500">{task.assignee_name || 'Unassigned'}</p>
             {task.status === 'DONE' && task.completed_by_name && isAdmin && (
               <p className="text-xs text-green-600">✓ Completed by {task.completed_by_name}</p>
@@ -215,24 +219,24 @@ function TaskRow({ task, refresh }: { task: Task; refresh: () => void }) {
         </div>
         <div className="flex gap-2">
           {isAdmin && task.status === 'PENDING' && task.task_type === 'STANDARD' && (
-            <button onClick={sendReminder} disabled={busy} className="p-1.5 text-gray-400 hover:text-blue-600" title="Send reminder now"><Send size={16} /></button>
+            <button onClick={sendReminder} disabled={busy} className="p-1.5 text-gray-400 hover:text-primary-500 transition-colors" title="Send reminder now"><Send size={16} /></button>
           )}
           {canAct && task.status === 'PENDING' && (
-            <button onClick={() => setModal('cantdo')} className="p-1.5 text-gray-400 hover:text-amber-600" title="Mark as cannot do"><X size={16} /></button>
+            <button onClick={() => setModal('cantdo')} className="p-1.5 text-gray-400 hover:text-amber-600 transition-colors" title="Mark as cannot do"><X size={16} /></button>
           )}
           {(task.status === 'DONE' || task.status === 'CANNOT_DO') && canAct && (
-            <button onClick={undoStatus} disabled={busy} className="p-1.5 text-gray-400 hover:text-gray-600" title="Undo"><RotateCcw size={16} /></button>
+            <button onClick={undoStatus} disabled={busy} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors" title="Undo"><RotateCcw size={16} /></button>
           )}
         </div>
       </div>
       {modal === 'cantdo' && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold mb-4">Cannot Complete Task</h3>
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason..." className="w-full px-4 py-3 border rounded-lg resize-none" rows={3} />
+          <div className="bg-white rounded-xl max-w-md w-full p-6 border-t-4 border-accent-400 shadow-lg">
+            <h3 className="text-lg font-serif font-semibold mb-4 text-gray-900">Cannot Complete Task</h3>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason..." className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-300 focus:border-primary-500 outline-none transition-colors" rows={3} />
             <div className="flex gap-3 mt-4">
-              <button onClick={() => setModal('none')} className="flex-1 px-4 py-2 border rounded-lg">Cancel</button>
-              <button onClick={submitCantDo} disabled={busy || !reason.trim()} className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg disabled:opacity-50">{busy ? '...' : 'Submit'}</button>
+              <button onClick={() => setModal('none')} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium">Cancel</button>
+              <button onClick={submitCantDo} disabled={busy || !reason.trim()} className="flex-1 px-4 py-2 bg-accent-400 text-gray-900 font-medium rounded-lg hover:bg-accent-500 disabled:opacity-50 transition-colors">{busy ? '...' : 'Submit'}</button>
             </div>
           </div>
         </div>
