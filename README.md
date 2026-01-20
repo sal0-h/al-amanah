@@ -186,6 +186,81 @@ npm install
 npm run dev  # Runs on :5173
 ```
 
+## ✅ Testing
+
+### Backend Tests (Docker - Production)
+```bash
+# Start containers (if not already running)
+docker-compose up -d
+
+# Run all 174 tests
+docker-compose exec backend pytest
+
+# Run with verbose output
+docker-compose exec backend pytest -v
+
+# Run specific test file
+docker-compose exec backend pytest tests/test_tasks.py
+
+# Run specific test by name
+docker-compose exec backend pytest -k "test_mark_task_done"
+
+# Coverage report
+docker-compose exec backend pytest --cov
+```
+
+✅ **Currently: 174 tests passing**
+
+**Test Structure:**
+- `tests/conftest.py` - Shared fixtures (in-memory SQLite, test users, auth)
+- `tests/test_*.py` - 10 test modules for each router (274 total test cases)
+- Fresh DB per test - All data isolated and cleaned up automatically
+
+**Key Fixtures:**
+- `client` - FastAPI TestClient
+- `admin_user` / `admin_client` - Pre-authenticated admin
+- `member_user` / `member_client` - Pre-authenticated member
+- `team_member` / `team_member_client` - Team member with team assignment
+- `semester` / `week` / `event` / `task` - Hierarchy fixtures
+
+**Example:**
+```python
+def test_mark_task_done(client, admin_client, task):
+    response = admin_client.patch(f"/api/tasks/{task.id}/done")
+    assert response.status_code == 200
+    assert response.json()["status"] == "DONE"
+```
+
+### Backend Tests (Local Development)
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pytest
+```
+
+### Frontend Tests (Local Development)
+```bash
+cd frontend
+npm install
+npm test                    # Run all tests
+npm test -- --watch       # Watch mode
+npm run test:coverage     # Coverage report
+```
+
+**Test Structure:**
+- `tests/setup.ts` - Global test configuration
+- `tests/*.test.ts(x)` - Test files
+- `tests/utils.ts` - Test helpers and mocks
+
+**Key Setup:**
+- `jsdom` environment for DOM testing
+- Mocked API client via `vi.mock('../api/client')`
+- React Testing Library for component testing
+
+> **Note**: Frontend service is build-only (exits after creating dist/) so tests must run locally during development
+
 ## ⚙️ Configuration
 
 Copy `.env.example` to `.env` and configure:

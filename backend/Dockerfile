@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY app/ ./app/
+COPY tests/ ./tests/
 
 # Create data directory
 RUN mkdir -p /app/data

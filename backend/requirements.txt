@@ -11,3 +11,5 @@ httpx==0.26.0
 apscheduler==3.10.4
 python-dotenv==1.0.0
 slowapi==0.1.9
+pytest==7.4.4
+pytest-cov==4.1.0
