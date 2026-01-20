@@ -127,12 +127,7 @@ async def batch_create_users(
     skipped = 0
     errors = []
     
-    # Debug: List all existing teams
-    all_teams = db.query(Team).all()
-    print(f"DEBUG: Existing teams in DB: {[(t.id, t.name) for t in all_teams]}")
-    
     for item in data.users:
-        print(f"DEBUG: Processing user {item.username}, team_id={item.team_id}, team_name='{item.team_name}'")
         try:
             # Check if username exists
             if db.query(User).filter(User.username == item.username).first():
@@ -150,14 +145,11 @@ async def batch_create_users(
             resolved_team_id = item.team_id
             if not resolved_team_id and item.team_name:
                 team_name_stripped = item.team_name.strip()
-                print(f"DEBUG: Looking up team by name: '{team_name_stripped}' (len={len(team_name_stripped)})")
                 # Match with trimmed names on both sides
                 teams = db.query(Team).all()
                 team = next((t for t in teams if t.name.strip().lower() == team_name_stripped.lower()), None)
-                print(f"DEBUG: Team lookup result: {team}")
                 if team:
                     resolved_team_id = team.id
-                    print(f"DEBUG: Found team ID: {resolved_team_id}")
                 else:
                     errors.append(f"{item.username}: Team '{item.team_name}' not found")
                     continue
