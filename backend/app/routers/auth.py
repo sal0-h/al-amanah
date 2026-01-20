@@ -14,6 +14,20 @@ from app.middleware.auth import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+def user_to_out(user: User) -> UserOut:
+    """Convert User model to UserOut schema."""
+    return UserOut(
+        id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        discord_id=user.discord_id,
+        role=user.role,
+        team_id=user.team_id,
+        team_name=user.team.name if user.team else None,
+        created_at=user.created_at
+    )
+
+
 @router.post("/login")
 async def login(credentials: UserLogin, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == credentials.username).first()
@@ -31,7 +45,7 @@ async def login(credentials: UserLogin, response: Response, db: Session = Depend
         secure=False  # Set to True in production with HTTPS
     )
     
-    return {"message": "Login successful", "user": UserOut.model_validate(user)}
+    return {"message": "Login successful", "user": user_to_out(user)}
 
 
 @router.post("/logout")
@@ -42,4 +56,4 @@ async def logout(response: Response):
 
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+    return user_to_out(current_user)

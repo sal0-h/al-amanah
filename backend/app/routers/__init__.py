@@ -5,6 +5,9 @@ from app.routers.weeks import router as weeks_router
 from app.routers.events import router as events_router
 from app.routers.tasks import router as tasks_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.templates import router as templates_router
+from app.routers.roster import router as roster_router
+from app.routers.teams import router as teams_router
 
 __all__ = [
     "auth_router",
@@ -13,5 +16,8 @@ __all__ = [
     "weeks_router",
     "events_router",
     "tasks_router",
-    "dashboard_router"
+    "dashboard_router",
+    "templates_router",
+    "roster_router",
+    "teams_router"
 ]

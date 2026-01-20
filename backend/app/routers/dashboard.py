@@ -1,15 +1,21 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from datetime import date
 from typing import List, Optional
 
 from app.database import get_db
-from app.models import Semester, Week, Event, Task, User, Role, Team
+from app.models import Semester, Week, Event, Task, User, Role, Team, TaskAssignment, RosterMember
 from app.middleware.auth import get_current_user
 from pydantic import BaseModel
 
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+
+
+class AssigneeInfo(BaseModel):
+    id: int
+    display_name: str
 
 
 class TaskData(BaseModel):
@@ -19,8 +25,11 @@ class TaskData(BaseModel):
     task_type: str
     status: str
     assigned_to: Optional[int]
-    assigned_team: Optional[str]
+    assigned_team_id: Optional[int]
     assignee_name: Optional[str]
+    assignees: List[AssigneeInfo] = []
+    completed_by: Optional[int]
+    completed_by_name: Optional[str]
     reminder_time: Optional[str]
     reminder_sent: bool
     cannot_do_reason: Optional[str]
@@ -69,6 +78,22 @@ async def get_dashboard(
             user_role=current_user.role.value
         )
     
+    # For non-admins, check if they're in the current semester's roster
+    if current_user.role != Role.ADMIN:
+        roster_membership = db.query(RosterMember).filter(
+            RosterMember.semester_id == semester.id,
+            RosterMember.user_id == current_user.id
+        ).first()
+        
+        if not roster_membership:
+            # User is not in this semester's roster - show empty dashboard
+            return DashboardResponse(
+                semester_name=semester.name,
+                semester_id=semester.id,
+                weeks=[],
+                user_role=current_user.role.value
+            )
+    
     # Get all weeks in semester
     weeks = db.query(Week).filter(
         Week.semester_id == semester.id
@@ -93,27 +118,73 @@ async def get_dashboard(
             
             # Filter tasks based on role
             if current_user.role != Role.ADMIN:
-                if current_user.team == Team.MEDIA:
-                    # Media team members see their tasks + media team tasks
+                # Get tasks assigned directly, via team, or via multi-user pool
+                user_assigned_task_ids = [
+                    a.task_id for a in db.query(TaskAssignment).filter(
+                        TaskAssignment.user_id == current_user.id
+                    ).all()
+                ]
+                
+                if current_user.team_id:
+                    # Team members see their tasks + their team's tasks + pool assignments
                     tasks_query = tasks_query.filter(
-                        (Task.assigned_to == current_user.id) | 
-                        (Task.assigned_team == "MEDIA")
+                        or_(
+                            Task.assigned_to == current_user.id,
+                            Task.assigned_team_id == current_user.team_id,
+                            Task.id.in_(user_assigned_task_ids) if user_assigned_task_ids else False
+                        )
                     )
                 else:
-                    # Regular members only see their assigned tasks
-                    tasks_query = tasks_query.filter(Task.assigned_to == current_user.id)
+                    # Regular members only see their assigned tasks + pool assignments
+                    if user_assigned_task_ids:
+                        tasks_query = tasks_query.filter(
+                            or_(
+                                Task.assigned_to == current_user.id,
+                                Task.id.in_(user_assigned_task_ids)
+                            )
+                        )
+                    else:
+                        tasks_query = tasks_query.filter(Task.assigned_to == current_user.id)
             
             tasks = tasks_query.all()
             
             tasks_data = []
             for task in tasks:
-                # Get assignee name
+                # Build assignee info
                 assignee_name = None
+                assignees = []
+                
                 if task.assigned_to:
                     assignee = db.query(User).filter(User.id == task.assigned_to).first()
-                    assignee_name = assignee.display_name if assignee else None
-                elif task.assigned_team:
-                    assignee_name = f"{task.assigned_team} Team"
+                    if assignee:
+                        assignee_name = assignee.display_name
+                        assignees.append(AssigneeInfo(id=assignee.id, display_name=assignee.display_name))
+                
+                if task.assigned_team_id:
+                    team = db.query(Team).filter(Team.id == task.assigned_team_id).first()
+                    if team:
+                        assignee_name = f"{team.name} Team"
+                        team_users = db.query(User).filter(User.team_id == task.assigned_team_id).all()
+                        for u in team_users:
+                            if not any(a.id == u.id for a in assignees):
+                                assignees.append(AssigneeInfo(id=u.id, display_name=u.display_name))
+                
+                # Multi-user pool assignments
+                for assignment in task.assignments:
+                    user = assignment.user
+                    if user and not any(a.id == user.id for a in assignees):
+                        assignees.append(AssigneeInfo(id=user.id, display_name=user.display_name))
+                
+                if not assignee_name and len(assignees) == 1:
+                    assignee_name = assignees[0].display_name
+                elif not assignee_name and len(assignees) > 1:
+                    assignee_name = f"{len(assignees)} people"
+                
+                # Get completer name
+                completed_by_name = None
+                if task.completed_by:
+                    completer = db.query(User).filter(User.id == task.completed_by).first()
+                    completed_by_name = completer.display_name if completer else None
                 
                 tasks_data.append(TaskData(
                     id=task.id,
@@ -122,8 +193,11 @@ async def get_dashboard(
                     task_type=task.task_type.value,
                     status=task.status.value,
                     assigned_to=task.assigned_to,
-                    assigned_team=task.assigned_team,
+                    assigned_team_id=task.assigned_team_id,
                     assignee_name=assignee_name,
+                    assignees=assignees,
+                    completed_by=task.completed_by,
+                    completed_by_name=completed_by_name,
                     reminder_time=task.reminder_time.isoformat() if task.reminder_time else None,
                     reminder_sent=task.reminder_sent,
                     cannot_do_reason=task.cannot_do_reason

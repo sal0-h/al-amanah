@@ -26,13 +26,22 @@ class Task(Base):
     task_type = Column(Enum(TaskType), default=TaskType.STANDARD, nullable=False)
     status = Column(Enum(TaskStatus), default=TaskStatus.PENDING, nullable=False)
     
-    # Assignment - either to a user or a team
+    # Assignment options:
+    # 1. assigned_to - single user (legacy, still supported)
+    # 2. assigned_team_id - assign to team (all members can complete)
+    # 3. Use TaskAssignment table for multi-user pool
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
-    assigned_team = Column(String(20), nullable=True)  # "MEDIA" or null
+    assigned_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     
-    # Reminder fields
+    # Track who completed the task
+    completed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    # Reminder fields (admin-triggered)
     reminder_time = Column(DateTime(timezone=True), nullable=True)
     reminder_sent = Column(Boolean, default=False, nullable=False)
+    
+    # Auto day-before reminder
+    auto_reminder_sent = Column(Boolean, default=False, nullable=False)
     
     # Cannot do reason
     cannot_do_reason = Column(Text, nullable=True)
@@ -40,5 +49,9 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
+    # Relationships
     event = relationship("Event", back_populates="tasks")
     assignee = relationship("User", foreign_keys=[assigned_to])
+    completer = relationship("User", foreign_keys=[completed_by])
+    assigned_team = relationship("Team")
+    assignments = relationship("TaskAssignment", back_populates="task", cascade="all, delete-orphan")
