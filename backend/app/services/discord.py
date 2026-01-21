@@ -9,6 +9,10 @@ settings = get_settings()
 
 async def send_reminder(discord_ids: List[str], task_title: str, event_name: str, custom_message: str = None) -> bool:
     """Send a reminder ping to users via Discord webhook."""
+    if not settings.DISCORD_ENABLED:
+        logger.info(f"Discord disabled: skipping reminder for task '{task_title}'")
+        return True
+    
     if not settings.REMINDER_WEBHOOK_URL:
         logger.warning("REMINDER_WEBHOOK_URL not configured")
         return False
@@ -52,6 +56,10 @@ async def send_admin_alert(
     reason: str
 ) -> bool:
     """Send an alert to admins when a task is flagged as Cannot Do."""
+    if not settings.DISCORD_ENABLED:
+        logger.info(f"Discord disabled: skipping admin alert for task '{task_title}'")
+        return True
+    
     if not settings.ADMIN_WEBHOOK_URL:
         logger.warning("ADMIN_WEBHOOK_URL not configured")
         return False

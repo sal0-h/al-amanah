@@ -42,7 +42,6 @@ class EventData(BaseModel):
     id: int
     name: str
     datetime: str
-    location: Optional[str]
     tasks: List[TaskData]
 
 
@@ -209,7 +208,6 @@ async def get_dashboard(
                     id=event.id,
                     name=event.name,
                     datetime=event.datetime.isoformat(),
-                    location=event.location,
                     tasks=tasks_data
                 ))
         

@@ -34,6 +34,21 @@ async def create_week(
     if not semester:
         raise HTTPException(status_code=404, detail="Semester not found")
     
+    # Validate week dates are within semester bounds
+    if week_data.start_date < semester.start_date or week_data.end_date > semester.end_date:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Week dates must be within semester bounds ({semester.start_date} to {semester.end_date})"
+        )
+    
+    # Check for duplicate week number in this semester
+    existing = db.query(Week).filter(
+        Week.semester_id == semester_id,
+        Week.week_number == week_data.week_number
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Week {week_data.week_number} already exists in this semester")
+    
     week = Week(semester_id=semester_id, **week_data.model_dump())
     db.add(week)
     db.commit()

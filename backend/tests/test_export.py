@@ -100,7 +100,6 @@ class TestImportData:
                     "events": [{
                         "name": "Imported Event",
                         "datetime": "2027-01-08T18:00:00",
-                        "location": "Imported Location",
                         "tasks": [{
                             "title": "Imported Task",
                             "description": None,

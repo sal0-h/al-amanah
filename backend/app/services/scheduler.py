@@ -2,6 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import logging
 import asyncio
 
@@ -12,12 +13,16 @@ from app.services.discord import send_reminder
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
+# Qatar timezone (UTC+3)
+QATAR_TZ = ZoneInfo("Asia/Qatar")
+
 
 async def check_auto_reminders():
     """Check for tasks that need automatic day-before event reminders."""
     db = SessionLocal()
     try:
-        now = datetime.now(timezone.utc)
+        # Use Qatar timezone for proper comparison
+        now = datetime.now(QATAR_TZ)
         tomorrow = now + timedelta(days=1)
         
         # Get all pending tasks for events happening tomorrow

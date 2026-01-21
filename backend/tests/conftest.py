@@ -192,8 +192,7 @@ def event(db_session, week) -> Event:
     evt = Event(
         week_id=week.id,
         name="Test Event",
-        datetime=datetime.now() + timedelta(hours=24),
-        location="Test Location"
+        datetime=datetime.now() + timedelta(hours=24)
     )
     db_session.add(evt)
     db_session.commit()

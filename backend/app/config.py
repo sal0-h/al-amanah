@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # Discord Webhooks
     REMINDER_WEBHOOK_URL: str = ""
     ADMIN_WEBHOOK_URL: str = ""
+    DISCORD_ENABLED: bool = True  # Set to False to disable all Discord notifications (testing)
     
     # Initial Admin
     ADMIN_USERNAME: str = "admin"

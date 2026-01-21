@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Settings, ChevronDown, ChevronRight, MapPin, Clock, X, AlertTriangle, Check, Wrench, RotateCcw, Send, Calendar, Key, Bell } from 'lucide-react';
+import { LogOut, Settings, ChevronDown, ChevronRight, Clock, X, AlertTriangle, Check, Wrench, RotateCcw, Send, Calendar, Key, Bell } from 'lucide-react';
 import * as api from '../api/client';
 import type { DashboardData, DashboardWeek, DashboardEvent, Task } from '../types';
 import { formatEventDateTime } from '../utils/dateFormat';
@@ -248,7 +248,6 @@ const EventCard = memo(function EventCard({ event, refresh, updateTask, isAdmin 
             <h3 className="font-serif font-semibold text-gray-900 dark:text-white text-lg">{event.name}</h3>
             <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               <span className="flex items-center gap-1"><Clock size={14} className="text-primary-400" />{formatEventDateTime(event.datetime)}</span>
-              {event.location && <span className="flex items-center gap-1"><MapPin size={14} className="text-primary-400" />{event.location}</span>}
             </div>
           </div>
         </div>

@@ -148,8 +148,26 @@ async def get_user_stats(
     
     stats = []
     for user in users:
-        # Get tasks assigned to this user
-        tasks_query = db.query(Task).filter(Task.assigned_to == user.id)
+        # Get tasks assigned to this user via ALL methods:
+        # 1. Direct assignment (assigned_to)
+        # 2. Team assignment (assigned_team_id matches user's team)
+        # 3. Pool assignment (TaskAssignment junction table)
+        from sqlalchemy import or_
+        from app.models import TaskAssignment
+        
+        # Get task IDs from pool assignments
+        pool_task_ids = [a.task_id for a in db.query(TaskAssignment).filter(
+            TaskAssignment.user_id == user.id
+        ).all()]
+        
+        # Build query for all assignment types
+        conditions = [Task.assigned_to == user.id]
+        if user.team_id:
+            conditions.append(Task.assigned_team_id == user.team_id)
+        if pool_task_ids:
+            conditions.append(Task.id.in_(pool_task_ids))
+        
+        tasks_query = db.query(Task).filter(or_(*conditions))
         if event_ids is not None:
             tasks_query = tasks_query.filter(Task.event_id.in_(event_ids)) if event_ids else tasks_query.filter(False)
         

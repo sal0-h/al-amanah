@@ -44,7 +44,6 @@ class TestCreateEventTemplate:
         """Admin can create custom event template."""
         response = admin_client.post("/api/templates/events", json={
             "name": "Custom Meeting",
-            "default_location": "Room 101",
             "tasks": [
                 {"title": "Prepare agenda", "task_type": "STANDARD"},
                 {"title": "Book room", "task_type": "SETUP"}
@@ -93,8 +92,7 @@ class TestUpdateEventTemplate:
         
         # Update it
         response = admin_client.put(f"/api/templates/events/{template_id}", json={
-            "name": "Updated Template Name",
-            "default_location": "New Location"
+            "name": "Updated Template Name"
         })
         assert response.status_code == 200
         assert response.json()["name"] == "Updated Template Name"
@@ -146,8 +144,7 @@ class TestCreateFromTemplate:
         response = admin_client.post("/api/templates/create", json={
             "template_id": "jumuah",
             "week_id": week.id,
-            "datetime": event_time,
-            "location": "Custom Mosque"
+            "datetime": event_time
         })
         assert response.status_code == 200
         data = response.json()

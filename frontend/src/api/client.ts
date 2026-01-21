@@ -178,7 +178,6 @@ export interface TaskTemplate {
 export interface EventTemplate {
   id: string;
   name: string;
-  default_location: string | null;
   tasks: TaskTemplate[];
   is_custom: boolean;
 }
@@ -191,14 +190,12 @@ export const getTemplates = () =>
 
 export const createEventTemplate = (data: {
   name: string;
-  default_location?: string;
   tasks: TaskTemplate[];
 }) =>
   request<EventTemplate>('/templates/events', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateEventTemplate = (id: number, data: {
   name?: string;
-  default_location?: string;
   tasks?: TaskTemplate[];
 }) =>
   request<EventTemplate>(`/templates/events/${id}`, { method: 'PUT', body: JSON.stringify(data) });
@@ -210,7 +207,6 @@ export const createFromTemplate = (data: {
   template_id: string;
   week_id: number;
   datetime: string;
-  location?: string;
   event_name?: string;
 }) => 
   request<{ message: string; event_id: number }>('/templates/create', { 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, Calendar, MapPin, FileText, Clock, Download, Upload, BarChart3, History } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, Calendar, FileText, Clock, Download, Upload, BarChart3, History } from 'lucide-react';
 import * as api from '../api/client';
 import type { Semester, Week, Event, Task, User, Team, AuditLogPage, OverviewStats, UserStats, TeamStats, SemesterStats } from '../types';
 import { formatEventDateTime, formatDate } from '../utils/dateFormat';
@@ -519,7 +519,7 @@ function WeekCard({ week, semesterId, onEdit, onDelete }: { week: Week; semester
     }
   }
 
-  async function handleTemplateCreate(data: { template_id: string; datetime: string; location?: string; event_name?: string }) {
+  async function handleTemplateCreate(data: { template_id: string; datetime: string; event_name?: string }) {
     try {
       await api.createFromTemplate({ ...data, week_id: week.id });
       loadEvents();
@@ -597,11 +597,10 @@ function WeekCard({ week, semesterId, onEdit, onDelete }: { week: Week; semester
 function EventForm({ initial, onSave, onCancel }: { initial: Event | null; onSave: (d: Partial<Event>) => void; onCancel: () => void }) {
   const [name, setName] = useState(initial?.name || '');
   const [datetime, setDatetime] = useState(initial?.datetime?.slice(0, 16) || '');
-  const [location, setLocation] = useState(initial?.location || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ name, datetime, location: location || null });
+    onSave({ name, datetime });
   };
 
   return (
@@ -614,10 +613,6 @@ function EventForm({ initial, onSave, onCancel }: { initial: Event | null; onSav
         <label className="block text-sm font-medium mb-1 dark:text-gray-300">Date & Time</label>
         <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" required />
       </div>
-      <div>
-        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Location (optional)</label>
-        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
-      </div>
       <div className="flex gap-3">
         <button type="button" onClick={onCancel} className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg dark:text-gray-300">Cancel</button>
         <button type="submit" className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg">Save</button>
@@ -626,11 +621,10 @@ function EventForm({ initial, onSave, onCancel }: { initial: Event | null; onSav
   );
 }
 
-function TemplateForm({ onSave, onCancel }: { onSave: (d: { template_id: string; datetime: string; location?: string; event_name?: string }) => void; onCancel: () => void }) {
+function TemplateForm({ onSave, onCancel }: { onSave: (d: { template_id: string; datetime: string; event_name?: string }) => void; onCancel: () => void }) {
   const [templates, setTemplates] = useState<api.EventTemplate[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [datetime, setDatetime] = useState('');
-  const [location, setLocation] = useState('');
   const [customName, setCustomName] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -646,7 +640,6 @@ function TemplateForm({ onSave, onCancel }: { onSave: (d: { template_id: string;
     onSave({
       template_id: selectedId,
       datetime,
-      location: location || selectedTemplate?.default_location || undefined,
       event_name: customName || undefined
     });
   };
@@ -657,7 +650,7 @@ function TemplateForm({ onSave, onCancel }: { onSave: (d: { template_id: string;
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium mb-1">Event Template</label>
-        <select value={selectedId} onChange={(e) => { setSelectedId(e.target.value); setLocation(''); setCustomName(''); }} className="w-full px-4 py-2 border rounded-lg" required>
+        <select value={selectedId} onChange={(e) => { setSelectedId(e.target.value); setCustomName(''); }} className="w-full px-4 py-2 border rounded-lg" required>
           <option value="">Select a template...</option>
           {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
@@ -690,11 +683,6 @@ function TemplateForm({ onSave, onCancel }: { onSave: (d: { template_id: string;
           <div>
             <label className="block text-sm font-medium mb-1">Date & Time</label>
             <input type="datetime-local" value={datetime} onChange={(e) => setDatetime(e.target.value)} className="w-full px-4 py-2 border rounded-lg" required />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Location</label>
-            <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={selectedTemplate.default_location || 'No default'} className="w-full px-4 py-2 border rounded-lg" />
           </div>
         </>
       )}
@@ -822,7 +810,6 @@ function EventCard({ event, semesterId, onEdit, onDelete }: { event: Event; seme
           {expanded ? <ChevronDown size={14} className="dark:text-gray-300" /> : <ChevronRight size={14} className="dark:text-gray-300" />}
           <span className="font-medium text-sm dark:text-white">{event.name}</span>
           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
-            {event.location && <span className="flex items-center gap-1"><MapPin size={12} />{event.location}</span>}
             <span className="flex items-center gap-1"><Calendar size={12} />{formatEventDateTime(event.datetime)}</span>
           </div>
         </div>
@@ -1418,7 +1405,7 @@ function TemplateManager() {
     }
   }
 
-  async function handleSaveEventTemplate(data: { name: string; default_location?: string; tasks: api.TaskTemplate[] }) {
+  async function handleSaveEventTemplate(data: { name: string; tasks: api.TaskTemplate[] }) {
     try {
       if (editingEvent && editingEvent.is_custom) {
         const id = parseInt(editingEvent.id.replace('db_', ''));
@@ -1514,7 +1501,6 @@ function TemplateManager() {
                   )}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {template.default_location && <span className="mr-3">📍 {template.default_location}</span>}
                   <span>{template.tasks.length} tasks</span>
                 </div>
               </div>
@@ -1643,11 +1629,10 @@ function TemplateManager() {
 function EventTemplateForm({ initial, teams, onSave, onCancel }: {
   initial: api.EventTemplate | null;
   teams: Team[];
-  onSave: (data: { name: string; default_location?: string; tasks: api.TaskTemplate[] }) => void;
+  onSave: (data: { name: string; tasks: api.TaskTemplate[] }) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name || '');
-  const [defaultLocation, setDefaultLocation] = useState(initial?.default_location || '');
   const [tasks, setTasks] = useState<api.TaskTemplate[]>(initial?.tasks || []);
 
   const handleAddTask = () => {
@@ -1668,7 +1653,6 @@ function EventTemplateForm({ initial, teams, onSave, onCancel }: {
     e.preventDefault();
     onSave({
       name,
-      default_location: defaultLocation || undefined,
       tasks: tasks.filter(t => t.title.trim())
     });
   };
@@ -1683,17 +1667,6 @@ function EventTemplateForm({ initial, teams, onSave, onCancel }: {
           onChange={(e) => setName(e.target.value)}
           className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
           required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Default Location</label>
-        <input
-          type="text"
-          value={defaultLocation}
-          onChange={(e) => setDefaultLocation(e.target.value)}
-          className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white"
-          placeholder="e.g., HBKU Mosque"
         />
       </div>
 

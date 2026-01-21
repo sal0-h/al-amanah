@@ -27,7 +27,6 @@ class TaskTemplateSchema(BaseModel):
 class EventTemplateOut(BaseModel):
     id: str  # String ID for compatibility (prefixed with 'db_' for DB templates)
     name: str
-    default_location: Optional[str] = None
     tasks: List[TaskTemplateSchema]
     is_custom: bool = False  # True if from DB, False if hardcoded
 
@@ -37,13 +36,11 @@ class EventTemplateOut(BaseModel):
 
 class EventTemplateCreate(BaseModel):
     name: str
-    default_location: Optional[str] = None
     tasks: List[TaskTemplateSchema] = []
 
 
 class EventTemplateUpdate(BaseModel):
     name: Optional[str] = None
-    default_location: Optional[str] = None
     tasks: Optional[List[TaskTemplateSchema]] = None
 
 
@@ -80,7 +77,7 @@ class WeekTemplateUpdate(BaseModel):
 
 DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
     EventTemplateOut(
-        id="jumuah", name="Jumuah Prayer", default_location="HBKU Mosque", is_custom=False,
+        id="jumuah", name="Jumuah Prayer", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Send email reminder (Thursday)", task_type="STANDARD"),
             TaskTemplateSchema(title="Prepare khutbah slides", task_type="STANDARD"),
@@ -90,7 +87,7 @@ DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
         ]
     ),
     EventTemplateOut(
-        id="halaqa", name="Weekly Halaqa", default_location="LAS 2001", is_custom=False,
+        id="halaqa", name="Weekly Halaqa", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Confirm speaker/topic", task_type="STANDARD"),
             TaskTemplateSchema(title="Post social media announcement", task_type="STANDARD", assigned_team_name="Media"),
@@ -99,7 +96,7 @@ DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
         ]
     ),
     EventTemplateOut(
-        id="sweet_sunday", name="Sweet Sunday", default_location="UC Black Box", is_custom=False,
+        id="sweet_sunday", name="Sweet Sunday", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Order desserts/snacks", task_type="STANDARD"),
             TaskTemplateSchema(title="Create event poster", task_type="STANDARD", assigned_team_name="Media"),
@@ -109,7 +106,7 @@ DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
         ]
     ),
     EventTemplateOut(
-        id="kk", name="Karak & Konversations (K&K)", default_location="TBD", is_custom=False,
+        id="kk", name="Karak & Konversations (K&K)", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Book venue", task_type="STANDARD"),
             TaskTemplateSchema(title="Order karak/snacks", task_type="STANDARD"),
@@ -128,7 +125,7 @@ DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
         ]
     ),
     EventTemplateOut(
-        id="eid_prep", name="Eid Celebration", default_location="HBKU Student Center", is_custom=False,
+        id="eid_prep", name="Eid Celebration", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Book venue", task_type="STANDARD"),
             TaskTemplateSchema(title="Plan menu & order food", task_type="STANDARD"),
@@ -141,7 +138,7 @@ DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
         ]
     ),
     EventTemplateOut(
-        id="iftar", name="Community Iftar", default_location="HBKU Mosque", is_custom=False,
+        id="iftar", name="Community Iftar", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Order food", task_type="STANDARD"),
             TaskTemplateSchema(title="Coordinate volunteers", task_type="STANDARD"),
@@ -152,7 +149,7 @@ DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
         ]
     ),
     EventTemplateOut(
-        id="speaker_event", name="Speaker Event", default_location="LAS 2001", is_custom=False,
+        id="speaker_event", name="Speaker Event", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Confirm speaker & topic", task_type="STANDARD"),
             TaskTemplateSchema(title="Create event poster", task_type="STANDARD", assigned_team_name="Media"),
@@ -163,7 +160,7 @@ DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
         ]
     ),
     EventTemplateOut(
-        id="dine_reflect", name="Dine & Reflect", default_location="TBD", is_custom=False,
+        id="dine_reflect", name="Dine & Reflect", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Book restaurant/venue", task_type="STANDARD"),
             TaskTemplateSchema(title="Prepare reflection topics", task_type="STANDARD"),
@@ -230,7 +227,6 @@ def db_event_template_to_out(t: EventTemplateModel) -> EventTemplateOut:
     return EventTemplateOut(
         id=f"db_{t.id}",
         name=t.name,
-        default_location=t.default_location,
         tasks=tasks,
         is_custom=True
     )
@@ -332,7 +328,6 @@ async def create_event_template(
     
     template = EventTemplateModel(
         name=data.name,
-        default_location=data.default_location,
         tasks_json=[t.model_dump() for t in data.tasks]
     )
     db.add(template)
@@ -356,8 +351,6 @@ async def update_event_template(
     
     if data.name is not None:
         template.name = data.name
-    if data.default_location is not None:
-        template.default_location = data.default_location
     if data.tasks is not None:
         template.tasks_json = [t.model_dump() for t in data.tasks]
     
@@ -513,7 +506,6 @@ class CreateFromTemplateRequest(BaseModel):
     template_id: str
     week_id: int
     datetime: str
-    location: Optional[str] = None
     event_name: Optional[str] = None
 
 
@@ -542,8 +534,7 @@ async def create_from_template(
     event = Event(
         week_id=data.week_id,
         name=data.event_name or template.name,
-        datetime=event_datetime,
-        location=data.location or template.default_location
+        datetime=event_datetime
     )
     db.add(event)
     db.flush()
@@ -615,8 +606,7 @@ async def create_from_week_template(
         event = Event(
             week_id=data.week_id,
             name=event_template.name,
-            datetime=event_datetime,
-            location=event_template.default_location
+            datetime=event_datetime
         )
         db.add(event)
         db.flush()

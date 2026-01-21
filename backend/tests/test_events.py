@@ -182,35 +182,20 @@ class TestEvents:
         
         response = admin_client.post(f"/api/weeks/{week.id}/events", json={
             "name": "New Event",
-            "datetime": event_time,
-            "location": "Conference Room"
+            "datetime": event_time
         })
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "New Event"
-        assert data["location"] == "Conference Room"
-    
-    def test_create_event_without_location(self, admin_client, week):
-        """Can create event without location."""
-        event_time = (datetime.now() + timedelta(days=3)).isoformat()
-        
-        response = admin_client.post(f"/api/weeks/{week.id}/events", json={
-            "name": "Virtual Event",
-            "datetime": event_time
-        })
-        assert response.status_code == 200
-        assert response.json()["location"] is None
     
     def test_update_event(self, admin_client, event):
         """Admin can update an event."""
         response = admin_client.put(f"/api/events/{event.id}", json={
-            "name": "Updated Event",
-            "location": "New Location"
+            "name": "Updated Event"
         })
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Updated Event"
-        assert data["location"] == "New Location"
     
     def test_delete_event(self, admin_client, event):
         """Admin can delete an event."""

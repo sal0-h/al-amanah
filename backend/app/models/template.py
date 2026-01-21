@@ -10,7 +10,6 @@ class EventTemplate(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, unique=True)
-    default_location = Column(String(200), nullable=True)
     
     # Store tasks as JSON array: [{"title": "...", "description": "...", "task_type": "STANDARD", "assigned_team_name": "Media"}]
     tasks_json = Column(JSON, default=list)

@@ -25,6 +25,7 @@ class ExportTask(BaseModel):
     status: str
     assigned_to_username: Optional[str]
     assigned_team_name: Optional[str]
+    assigned_pool_usernames: List[str] = []  # Multi-user pool assignments
     completed_by_username: Optional[str]
     cannot_do_reason: Optional[str]
 
@@ -32,7 +33,6 @@ class ExportTask(BaseModel):
 class ExportEvent(BaseModel):
     name: str
     datetime: str
-    location: Optional[str]
     tasks: List[ExportTask]
 
 
@@ -127,6 +127,12 @@ def build_semester_export(semester: Semester, db: Session) -> ExportSemester:
                     team = db.query(Team).filter(Team.id == task.assigned_team_id).first()
                     team_name = team.name if team else None
                 
+                # Get multi-user pool assignments
+                pool_usernames = []
+                for assignment in task.assignments:
+                    if assignment.user:
+                        pool_usernames.append(assignment.user.username)
+                
                 completed_by_username = None
                 if task.completed_by:
                     user = db.query(User).filter(User.id == task.completed_by).first()
@@ -139,6 +145,7 @@ def build_semester_export(semester: Semester, db: Session) -> ExportSemester:
                     status=task.status.value,
                     assigned_to_username=assigned_username,
                     assigned_team_name=team_name,
+                    assigned_pool_usernames=pool_usernames,
                     completed_by_username=completed_by_username,
                     cannot_do_reason=task.cannot_do_reason
                 ))
@@ -146,7 +153,6 @@ def build_semester_export(semester: Semester, db: Session) -> ExportSemester:
             export_events.append(ExportEvent(
                 name=event.name,
                 datetime=event.datetime.isoformat(),
-                location=event.location,
                 tasks=export_tasks
             ))
         
@@ -236,8 +242,7 @@ async def import_data(
                     event = Event(
                         week_id=week.id,
                         name=event_data.name,
-                        datetime=datetime.fromisoformat(event_data.datetime.replace('Z', '+00:00')),
-                        location=event_data.location
+                        datetime=datetime.fromisoformat(event_data.datetime.replace('Z', '+00:00'))
                     )
                     db.add(event)
                     db.flush()
@@ -267,6 +272,16 @@ async def import_data(
                             cannot_do_reason=task_data.cannot_do_reason
                         )
                         db.add(task)
+                        db.flush()  # Get task ID for pool assignments
+                        
+                        # Restore multi-user pool assignments
+                        from app.models import TaskAssignment
+                        for pool_username in getattr(task_data, 'assigned_pool_usernames', []):
+                            pool_user = db.query(User).filter(User.username == pool_username).first()
+                            if pool_user:
+                                assignment = TaskAssignment(task_id=task.id, user_id=pool_user.id)
+                                db.add(assignment)
+                        
                         tasks_created += 1
             
             db.commit()

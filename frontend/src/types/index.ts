@@ -36,7 +36,6 @@ export interface Event {
   week_id: number;
   name: string;
   datetime: string;
-  location: string | null;
 }
 
 export interface AssigneeInfo {

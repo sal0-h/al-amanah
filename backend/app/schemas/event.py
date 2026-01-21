@@ -6,7 +6,6 @@ from datetime import datetime
 class EventBase(BaseModel):
     name: str
     datetime: datetime
-    location: Optional[str] = None
 
 
 class EventCreate(EventBase):
@@ -16,7 +15,6 @@ class EventCreate(EventBase):
 class EventUpdate(BaseModel):
     name: Optional[str] = None
     datetime: Optional[datetime] = None
-    location: Optional[str] = None
 
 
 class EventOut(EventBase):

@@ -94,13 +94,18 @@ async def delete_team(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Delete a team (admin only). Will unassign users from this team."""
+    """Delete a team (admin only). Will unassign users and tasks from this team."""
+    from app.models import Task
+    
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
     # Unassign users from this team
     db.query(User).filter(User.team_id == team_id).update({"team_id": None})
+    
+    # Clear task team assignments (prevents orphaned references)
+    db.query(Task).filter(Task.assigned_team_id == team_id).update({"assigned_team_id": None})
     
     db.delete(team)
     db.commit()
