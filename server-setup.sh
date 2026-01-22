@@ -26,15 +26,23 @@ else
     echo "   ✅ Docker already installed"
 fi
 
-# Step 2: Install Docker Compose plugin if not present
+# Step 2: Install Docker Compose if not present
 echo ""
 echo "📦 Step 2/5: Checking Docker Compose..."
-if ! docker compose version &> /dev/null; then
+if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/null; then
     echo "   Installing Docker Compose..."
-    sudo apt-get update
-    sudo apt-get install -y docker-compose-plugin
+    # Try the standalone method (works on all Ubuntu versions)
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
 fi
-echo "   ✅ Docker Compose ready"
+
+# Determine which compose command to use
+if docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+else
+    COMPOSE_CMD="docker-compose"
+fi
+echo "   ✅ Docker Compose ready (using: $COMPOSE_CMD)"
 
 # Step 3: Create .env file
 echo ""
@@ -85,7 +93,7 @@ echo "   ✅ Data directory ready"
 echo ""
 echo "🚀 Step 5/5: Starting the application..."
 cd "$PROJECT_DIR"
-docker compose up -d --build
+$COMPOSE_CMD up -d --build
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
