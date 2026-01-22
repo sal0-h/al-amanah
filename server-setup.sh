@@ -21,9 +21,20 @@ if ! command -v docker &> /dev/null; then
     echo "   Installing Docker..."
     curl -fsSL https://get.docker.com | sudo sh
     sudo usermod -aG docker $USER
-    echo "   ✅ Docker installed! You may need to log out and back in."
+    echo "   ✅ Docker installed!"
 else
     echo "   ✅ Docker already installed"
+fi
+
+# Make sure user is in docker group
+if ! groups | grep -q docker; then
+    echo "   Adding user to docker group..."
+    sudo usermod -aG docker $USER
+    echo ""
+    echo "   ⚠️  You were added to the docker group."
+    echo "   Please run: newgrp docker"
+    echo "   Then run this script again: ./server-setup.sh"
+    exit 0
 fi
 
 # Step 2: Install Docker Compose if not present
