@@ -4,6 +4,18 @@
 
 **Semester → Week → Event → Task** hierarchy with Discord notifications. Stack: FastAPI + React/Vite + SQLite + nginx, containerized via Docker Compose.
 
+### Critical Data Model (Discovered, not aspirational)
+
+**Hierarchy**: Semester (single active) → Week (by semester) → Event (by week) → Task (by event)
+- **Single Active Semester Pattern**: Only one `is_active=True` enforced in [routers/semesters.py](../backend/app/routers/semesters.py) - auto-deactivates others
+- **Roster Membership**: Users must exist in `RosterMember` junction table per semester to be assignable/visible (access control layer)
+- **Three Task Assignment Models** (all co-exist, checked in order in `can_modify_task()`):
+  1. `assigned_to` (int): Single user directly responsible
+  2. `assigned_team_id` (int): Any team member in `users.team_id` can complete
+  3. `TaskAssignment` pool: Multi-user via junction table - any member in pool can act
+- **Task Status Flow**: `PENDING` → `DONE` OR `CANNOT_DO` (blocks and alerts admins) → `PENDING` (undo)
+- **Task Types**: `STANDARD` (requires completion) vs `SETUP` (informational only - no done required)
+
 ### Quick Start
 
 ```bash
@@ -27,6 +39,41 @@ docker-compose up -d --build
 | **Gold** | `#FDB913` | Accent color, highlights, current week indicator |
 
 Tailwind config maps these to `primary-*` and `accent-*` color scales.
+
+## Authentication & Authorization Patterns
+
+### Session-Based Auth (Not JWT)
+- Uses `itsdangerous` signed cookies (7-day max age)
+- **Dependencies**: `get_current_user` (any authenticated user), `get_admin_user` (admin only)
+- See [middleware/auth.py](../backend/app/middleware/auth.py) for token creation/verification
+- Frontend must set `credentials: 'include'` in API calls (already in [api/client.ts](../frontend/src/api/client.ts))
+
+### Role-Based Visibility
+- **Admins**: See all tasks across all events
+- **Team Members**: See `assigned_to` (them) + `assigned_team_id` (their team) + multi-user pool
+- **Regular Members**: See only `assigned_to` (them) + multi-user pool
+- **Non-Roster Users**: See empty dashboard even if active semester exists
+- Filtering in [routers/dashboard.py](../backend/app/routers/dashboard.py) - must check all 3 assignment types
+
+### Key Permissions Pattern
+```python
+def can_modify_task(task: Task, user: User, db: Session) -> bool:
+    """Check all 3 assignment types."""
+    if user.role == Role.ADMIN:
+        return True
+    if task.assigned_to == user.id:
+        return True
+    if task.assigned_team_id and user.team_id == task.assigned_team_id:
+        return True
+    # Multi-user pool check
+    assignment = db.query(TaskAssignment).filter(
+        TaskAssignment.task_id == task.id,
+        TaskAssignment.user_id == user.id
+    ).first()
+    return assignment is not None
+```
+
+## Critical Patterns & Conventions
 
 ### Key Patterns
 
@@ -71,31 +118,56 @@ if task.assigned_team_id and user.team_id == task.assigned_team_id:
 
 ```
 backend/app/
-├── models/           # SQLAlchemy 2.0 ORM (12 models)
-├── schemas/          # Pydantic v2: *Create, *Update, *Out naming
-├── routers/          # 14 routers, all /api prefixed
-│   └── Key: tasks.py, dashboard.py, templates.py, roster.py, audit.py, stats.py
-├── services/         # discord.py, scheduler.py, audit.py
-├── middleware/       # auth.py (session, password hashing)
+├── models/           # SQLAlchemy 2.0 ORM (12 models) - enums stored as strings
+├── schemas/          # Pydantic v2: *Create, *Update, *Out naming (strict separation)
+├── routers/          # 14 routers, all /api prefixed, each ~200-400 lines
+│   └── Key: tasks.py (assignment logic), dashboard.py (filtering), templates.py (hardcoded+DB)
+├── services/         # discord.py (webhooks), scheduler.py (async APScheduler), audit.py (logging)
+├── middleware/       # auth.py (session cookies, password hashing), CORS (Cloudflare-aware)
+└── database.py       # SQLite, creates all tables on startup
 ```
+
+### Data Transformation Pattern: `*_to_out()` Functions
+All routers use explicit conversion functions to transform ORM models to Pydantic schemas:
+```python
+def task_to_out(task: Task, db: Session) -> TaskOut:
+    """Convert Task ORM to output schema, resolving assignee info from 3 sources."""
+    assignee_name = None
+    assignees = []
+    # Check assigned_to user
+    if task.assigned_to:
+        user = db.query(User).filter(User.id == task.assigned_to).first()
+        if user:
+            assignees.append(AssigneeInfo(id=user.id, display_name=user.display_name))
+    # Check assigned_team_id members
+    if task.assigned_team_id:
+        team_users = db.query(User).filter(User.team_id == task.assigned_team_id).all()
+        for u in team_users:
+            if not any(a.id == u.id for a in assignees):
+                assignees.append(AssigneeInfo(...))
+    # Check multi-user pool
+    for assignment in task.assignments:
+        # Add from pool...
+```
+This pattern is repeated in [routers/tasks.py](../backend/app/routers/tasks.py), [routers/dashboard.py](../backend/app/routers/dashboard.py), [routers/users.py](../backend/app/routers/users.py).
 
 ### Frontend Structure
 
 ```
 frontend/src/
-├── api/client.ts     # All API calls - generic request<T>() wrapper
-├── types/index.ts    # TypeScript interfaces (keep synced with backend)
-├── context/          # AuthContext, ThemeContext
-├── components/       # ThemeToggle (shared)
+├── api/client.ts     # All API calls - generic request<T>() wrapper with credentials: 'include'
+├── types/index.ts    # TypeScript interfaces (MUST sync with backend Pydantic models)
+├── context/          # AuthContext (login/logout/user state), ThemeContext (dark mode)
+├── components/       # ThemeToggle.tsx (shared reusable)
 ├── pages/
-│   ├── Dashboard.tsx   # Main view with inline EventCard, TaskRow (memo'd)
-│   ├── AdminPanel.tsx  # All admin tabs in one file
-│   ├── Statistics.tsx  # Charts and analytics
+│   ├── Dashboard.tsx  # Main view - INLINE EventCard & TaskRow (memo'd for perf)
+│   ├── AdminPanel.tsx # All admin tabs in single file (semesters, events, users, etc.)
+│   ├── Statistics.tsx # Charts via Chart.js
 │   └── Login.tsx
-├── utils/            # dateFormat.ts helper
+└── utils/            # dateFormat.ts (UTC+3 Qatar timezone handling)
 ```
 
-**Note**: Components like EventCard/TaskRow are defined inline in Dashboard.tsx, not separate files.
+**Important**: EventCard and TaskRow are defined INLINE in Dashboard.tsx with `React.memo()` to prevent re-renders on parent updates. Do NOT move them to separate files without removing memoization.
 
 ## Development Commands
 
@@ -220,16 +292,6 @@ Required `.env` variables (copy from `.env.example`):
 
 **Verify**: http://localhost (nginx) or http://localhost/api/docs (FastAPI docs)
 
-## Key Gotchas
-
-- **Discord IDs**: Must be numeric (`123456789012345678`), not usernames.
-- **SQLite persistence**: `./data/` volume mount - don't delete or DB resets.
-- **Admin auto-created**: From `ADMIN_USERNAME`/`ADMIN_PASSWORD` in `.env` on first run.
-- **Port conflicts**: nginx uses port 80 - ensure it's free before starting.
-- **Session cookies**: Frontend must use `credentials: 'include'` in all API calls (already configured in [client.ts](../frontend/src/api/client.ts)).
-- **Dark mode classes**: Every new component needs `dark:` variants for text, backgrounds, borders.
-- **Task assignment changes**: Editing `assigned_to` or `assigned_team_id` automatically resets task status to `PENDING`.
-
 ## Testing Patterns
 
 ### Backend (pytest)
@@ -239,6 +301,17 @@ Tests use in-memory SQLite with fresh DB per test. Key fixtures in [conftest.py]
 - `admin_user`/`admin_headers`: Pre-authenticated admin
 - `member_user`/`member_headers`: Regular member
 - `test_semester`/`test_week`/`test_event`: Hierarchy fixtures
+
+**Critical**: All fixtures auto-add users to roster for that semester:
+```python
+@pytest.fixture
+def roster_member(db_session, semester, member_user) -> RosterMember:
+    """Add member_user to semester roster."""
+    rm = RosterMember(semester_id=semester.id, user_id=member_user.id)
+    db_session.add(rm)
+    db_session.commit()
+    return rm
+```
 
 Example test pattern:
 ```python
@@ -260,6 +333,16 @@ test('renders dashboard with events', async () => {
   expect(await screen.findByText('Week 1')).toBeInTheDocument();
 });
 ```
+
+## Key Gotchas
+
+- **Discord IDs**: Must be numeric (`123456789012345678`), not usernames.
+- **SQLite persistence**: `./data/` volume mount - don't delete or DB resets.
+- **Admin auto-created**: From `ADMIN_USERNAME`/`ADMIN_PASSWORD` in `.env` on first run.
+- **Port conflicts**: nginx uses port 80 - ensure it's free before starting.
+- **Session cookies**: Frontend must use `credentials: 'include'` in all API calls (already configured in [client.ts](../frontend/src/api/client.ts)).
+- **Dark mode classes**: Every new component needs `dark:` variants for text, backgrounds, borders.
+- **Task assignment changes**: Editing `assigned_to` or `assigned_team_id` automatically resets task status to `PENDING`.
 
 ## API Reference
 
@@ -381,3 +464,35 @@ test('renders dashboard with events', async () => {
 | GET | `/semester/{id}` | Admin | Export single semester |
 | GET | `/all` | Admin | Export all data |
 | POST | `/import` | Admin | Import data (skip_existing param) |
+## Critical Implementation Details
+
+### Scheduler & Timezones
+- **Qatar Timezone (UTC+3)**: Used in [services/scheduler.py](../backend/app/services/scheduler.py) for all time comparisons
+- **APScheduler**: Runs async tasks hourly - checks for events 24hrs ahead, sends auto-reminders once via `auto_reminder_sent` flag
+- **Daemon Pattern**: Started in `@app.lifespan` context manager (main.py lines 70+)
+
+### Discord Integration Points
+- Webhooks configured via `.env` (`REMINDER_WEBHOOK_URL`, `ADMIN_WEBHOOK_URL`)
+- Mentions use Discord ID format: `<@123456789012345678>` (numeric only, no usernames)
+- All Discord sends are async and fail silently (logged but don't crash request)
+- Tests set `DISCORD_ENABLED=False` in config to skip actual webhook calls
+
+### CORS & Cloudflare
+- **Dev**: `get_allowed_origins()` returns localhost origins
+- **Production**: Accepts any HTTPS origin (safe because Cloudflare tunnel enforces HTTPS)
+- Smart detection: If `DEBUG=False` and request has `cf-connecting-ip` header, treat as Cloudflare-proxied
+
+### Email & Reminders
+- **Auto Reminders**: APScheduler job runs hourly, sends 1x per task when event is within 24hrs
+- **Manual Reminders**: Admin can trigger via `POST /tasks/{id}/send-reminder` or `POST /events/{id}/send-all-reminders`
+- **Cannot Do Alerts**: Immediate Discord webhook to admins when user marks task impossible
+
+### Assignment Resolution Order
+When building task UI/API responses:
+1. Check `assigned_to` (single user)
+2. Check `assigned_team_id` (fetch all team members)
+3. Iterate `task.assignments` (TaskAssignment table)
+4. Build deduplicated `assignees` list (avoid duplicate IDs)
+5. Set `assignee_name` based on count: single user name → team name → "{N} people"
+
+See `task_to_out()` in [routers/tasks.py](../backend/app/routers/tasks.py) for canonical implementation.
