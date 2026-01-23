@@ -17,6 +17,13 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Request failed' }));
+    // Handle validation errors (422) with detailed message
+    if (res.status === 422 && Array.isArray(error.detail)) {
+      const messages = error.detail.map((e: { loc?: string[]; msg?: string }) => 
+        `${e.loc?.join('.') || 'field'}: ${e.msg || 'invalid'}`
+      ).join('; ');
+      throw new Error(messages);
+    }
     throw new Error(error.detail || 'Request failed');
   }
 

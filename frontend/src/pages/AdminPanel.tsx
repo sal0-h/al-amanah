@@ -518,6 +518,7 @@ function WeekCard({ week, semesterId, onEdit, onDelete }: { week: Week; semester
       setEditingEvent(null);
     } catch (err) {
       console.error('Failed to save event:', err);
+      alert(`Failed to save event: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   }
 
