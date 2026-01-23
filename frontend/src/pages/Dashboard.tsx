@@ -71,7 +71,7 @@ export default function Dashboard() {
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-14 w-auto" />
+            <img key={theme} src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-14 w-auto" />
             <h1 className="text-xl font-serif font-bold text-primary-500">Task Tracker</h1>
           </div>
           <div className="flex items-center gap-3">

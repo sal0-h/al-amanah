@@ -520,11 +520,22 @@ async def create_from_template(
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
     
+    # Pre-validate all teams exist
+    missing_teams = []
     team_cache = {}
     for task_tmpl in template.tasks:
         if task_tmpl.assigned_team_name and task_tmpl.assigned_team_name not in team_cache:
             team = db.query(Team).filter(Team.name.ilike(task_tmpl.assigned_team_name)).first()
-            team_cache[task_tmpl.assigned_team_name] = team.id if team else None
+            if team:
+                team_cache[task_tmpl.assigned_team_name] = team.id
+            else:
+                missing_teams.append(task_tmpl.assigned_team_name)
+    
+    if missing_teams:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Teams not found: {', '.join(missing_teams)}. Create teams before using template."
+        )
     
     try:
         event_datetime = dt.fromisoformat(data.datetime.replace('Z', '+00:00'))

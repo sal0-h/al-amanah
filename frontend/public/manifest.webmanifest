@@ -1,8 +1,12 @@
 {
-  "name": "MSA Task Tracker",
-  "short_name": "Task Tracker",
+  "id": "/",
+  "name": "MSA Task Tracker - CMU Qatar",
+  "short_name": "MSA Tracker",
+  "description": "Task management system for CMU Qatar Muslim Student Association",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#C4122F",
   "icons": [
@@ -10,13 +14,13 @@
       "src": "/images/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/images/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

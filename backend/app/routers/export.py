@@ -234,18 +234,18 @@ async def import_data(
                     end_date=datetime.fromisoformat(week_data.end_date).date()
                 )
                 db.add(week)
-                db.flush()
+                # Store week for later ID resolution (no flush yet)
                 weeks_created += 1
                 
                 # Create events
                 for event_data in week_data.events:
                     event = Event(
-                        week_id=week.id,
+                        week_id=None,  # Will be set after flush
                         name=event_data.name,
                         datetime=datetime.fromisoformat(event_data.datetime.replace('Z', '+00:00'))
                     )
+                    event.week = week  # Use relationship instead of ID
                     db.add(event)
-                    db.flush()
                     events_created += 1
                     
                     # Create tasks
@@ -262,7 +262,7 @@ async def import_data(
                             assigned_team_id = team.id if team else None
                         
                         task = Task(
-                            event_id=event.id,
+                            event_id=None,  # Will be set via relationship
                             title=task_data.title,
                             description=task_data.description,
                             task_type=TaskType[task_data.task_type],
@@ -271,19 +271,21 @@ async def import_data(
                             assigned_team_id=assigned_team_id,
                             cannot_do_reason=task_data.cannot_do_reason
                         )
+                        task.event = event  # Use relationship
                         db.add(task)
-                        db.flush()  # Get task ID for pool assignments
                         
                         # Restore multi-user pool assignments
                         from app.models import TaskAssignment
                         for pool_username in getattr(task_data, 'assigned_pool_usernames', []):
                             pool_user = db.query(User).filter(User.username == pool_username).first()
                             if pool_user:
-                                assignment = TaskAssignment(task_id=task.id, user_id=pool_user.id)
+                                assignment = TaskAssignment(task_id=None, user_id=pool_user.id)
+                                assignment.task = task  # Use relationship
                                 db.add(assignment)
                         
                         tasks_created += 1
             
+            # Single commit at end of semester - all or nothing
             db.commit()
             
         except Exception as e:

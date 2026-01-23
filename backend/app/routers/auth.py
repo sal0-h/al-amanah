@@ -22,6 +22,19 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+def is_https_request(request: Request) -> bool:
+    """Detect HTTPS from Cloudflare headers or settings."""
+    # Check Cloudflare header first (cf-visitor contains {"scheme":"https"})
+    cf_visitor = request.headers.get('cf-visitor', '')
+    if '"scheme":"https"' in cf_visitor or '"scheme": "https"' in cf_visitor:
+        return True
+    # Check X-Forwarded-Proto header (standard reverse proxy)
+    if request.headers.get('x-forwarded-proto', '').lower() == 'https':
+        return True
+    # Fallback to manual setting
+    return settings.USE_HTTPS
+
+
 def user_to_out(user: User) -> UserOut:
     """Convert User model to UserOut schema."""
     return UserOut(
@@ -45,13 +58,18 @@ async def login(request: Request, credentials: UserLogin, response: Response, db
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
     token = create_session_token(user.id)
+    
+    # Auto-detect HTTPS from Cloudflare or proxy headers
+    use_secure = is_https_request(request)
+    
     response.set_cookie(
         key="session",
         value=token,
         max_age=SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
-        secure=settings.USE_HTTPS  # Auto-enabled for HTTPS deployments
+        secure=use_secure,  # Auto-detected from headers
+        domain=None  # None = current domain only (works for subdomains with explicit domain if needed)
     )
     
     return {"message": "Login successful", "user": user_to_out(user)}

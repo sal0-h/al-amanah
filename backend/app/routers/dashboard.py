@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from datetime import date
 from typing import List, Optional
@@ -113,7 +113,13 @@ async def get_dashboard(
         events_data = []
         for event in events:
             # Get tasks with filtering based on user role
-            tasks_query = db.query(Task).filter(Task.event_id == event.id)
+            # Eager load relationships to prevent N+1 queries
+            tasks_query = db.query(Task).filter(Task.event_id == event.id).options(
+                joinedload(Task.assigned_user),
+                joinedload(Task.assigned_team),
+                joinedload(Task.completed_user),
+                joinedload(Task.assignments).joinedload(TaskAssignment.user)
+            )
             
             # Filter tasks based on role
             if current_user.role != Role.ADMIN:

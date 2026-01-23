@@ -51,8 +51,8 @@ class Task(Base):
     
     # Relationships
     event = relationship("Event", back_populates="tasks")
-    assignee = relationship("User", foreign_keys=[assigned_to])
-    completer = relationship("User", foreign_keys=[completed_by])
+    assigned_user = relationship("User", foreign_keys=[assigned_to])  # For eager loading
+    completed_user = relationship("User", foreign_keys=[completed_by])  # For eager loading
     assigned_team = relationship("Team")
     assignments = relationship("TaskAssignment", back_populates="task", cascade="all, delete-orphan")
     comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")

@@ -106,6 +106,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=3600  # Cache preflight responses for 1 hour
 )
 
 # Include routers

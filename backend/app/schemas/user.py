@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
+import re
 from app.models.user import Role
 
 
@@ -10,6 +11,15 @@ class UserBase(BaseModel):
     discord_id: Optional[str] = None
     role: Role = Role.MEMBER
     team_id: Optional[int] = None
+    
+    @field_validator('discord_id')
+    @classmethod
+    def validate_discord_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v.strip():
+            if not re.match(r'^\d{18}$', v.strip()):
+                raise ValueError('Discord ID must be exactly 18 digits')
+            return v.strip()
+        return None
 
 
 class UserCreate(UserBase):
@@ -22,6 +32,15 @@ class UserUpdate(BaseModel):
     role: Optional[Role] = None
     team_id: Optional[int] = None
     password: Optional[str] = None
+    
+    @field_validator('discord_id')
+    @classmethod
+    def validate_discord_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v.strip():
+            if not re.match(r'^\d{18}$', v.strip()):
+                raise ValueError('Discord ID must be exactly 18 digits')
+            return v.strip()
+        return None
 
 
 class UserOut(BaseModel):

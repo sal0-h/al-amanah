@@ -32,7 +32,7 @@ export default function Login() {
       </div>
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-8 border-t-4 border-accent-400">
         <div className="text-center mb-8">
-          <img src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-28 mx-auto mb-4" />
+          <img key={theme} src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-28 mx-auto mb-4" />
           <h1 className="text-2xl font-serif font-bold text-gray-900 dark:text-white">Task Tracker</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">CMU Qatar Muslim Student Association</p>
         </div>

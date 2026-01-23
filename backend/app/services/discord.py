@@ -2,9 +2,33 @@ import httpx
 from app.config import get_settings
 import logging
 from typing import List
+import asyncio
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+async def _send_webhook_with_retry(url: str, message: dict, max_retries: int = 3) -> bool:
+    """Send webhook with exponential backoff retry."""
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url,
+                    json=message,
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                return True
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 1s, 2s, 4s
+                logger.warning(f"Discord webhook attempt {attempt + 1} failed: {e}. Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error(f"Discord webhook failed after {max_retries} attempts: {e}")
+                return False
+    return False
 
 
 async def send_reminder(discord_ids: List[str], task_title: str, event_name: str, custom_message: str = None) -> bool:
@@ -34,19 +58,10 @@ async def send_reminder(discord_ids: List[str], task_title: str, event_name: str
         "allowed_mentions": {"users": discord_ids}
     }
     
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                settings.REMINDER_WEBHOOK_URL,
-                json=message,
-                timeout=10.0
-            )
-            response.raise_for_status()
-            logger.info(f"Sent reminder to {len(discord_ids)} users for task: {task_title}")
-            return True
-    except Exception as e:
-        logger.error(f"Failed to send reminder: {e}")
-        return False
+    result = await _send_webhook_with_retry(settings.REMINDER_WEBHOOK_URL, message)
+    if result:
+        logger.info(f"Sent reminder to {len(discord_ids)} users for task: {task_title}")
+    return result
 
 
 async def send_admin_alert(
@@ -74,15 +89,4 @@ async def send_admin_alert(
         )
     }
     
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                settings.ADMIN_WEBHOOK_URL,
-                json=message,
-                timeout=10.0
-            )
-            response.raise_for_status()
-            return True
-    except Exception as e:
-        logger.error(f"Failed to send admin alert: {e}")
-        return False
+    return await _send_webhook_with_retry(settings.ADMIN_WEBHOOK_URL, message)

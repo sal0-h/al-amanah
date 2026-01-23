@@ -25,7 +25,7 @@ export default function AdminPanel() {
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-14 w-auto" />
+            <img key={theme} src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-14 w-auto" />
             <h1 className="text-xl font-serif font-bold text-primary-500">Admin Panel</h1>
           </div>
           <div className="flex items-center gap-3">
@@ -471,11 +471,11 @@ function WeekForm({ initial, onSave, onCancel }: { initial: Week | null; onSave:
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1 dark:text-gray-300">Start Date</label>
-          <input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" required />
+          <input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" required title="Week starts on Sunday" />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1 dark:text-gray-300">End Date</label>
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-gray-500 dark:bg-gray-700 dark:text-white" required />
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-gray-500 dark:bg-gray-700 dark:text-white" required title="Week ends on Saturday (7 days inclusive: Sunday-Saturday)" />
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Auto-calculated (editable)</p>
         </div>
       </div>
