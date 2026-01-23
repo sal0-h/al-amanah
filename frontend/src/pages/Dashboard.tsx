@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { LogOut, Settings, ChevronDown, ChevronRight, Clock, X, AlertTriangle, Check, Wrench, RotateCcw, Send, Calendar, Key, Bell } from 'lucide-react';
 import * as api from '../api/client';
 import type { DashboardData, DashboardWeek, DashboardEvent, Task } from '../types';
@@ -8,6 +9,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const { theme } = useTheme();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -69,7 +71,7 @@ export default function Dashboard() {
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/images/MSA_main_clear.png" alt="MSA Logo" className="h-14 w-auto" />
+            <img src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-14 w-auto" />
             <h1 className="text-xl font-serif font-bold text-primary-500">Task Tracker</h1>
           </div>
           <div className="flex items-center gap-3">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, Calendar, FileText, Clock, Download, Upload, BarChart3, History } from 'lucide-react';
 import * as api from '../api/client';
 import type { Semester, Week, Event, Task, User, Team, AuditLogPage, OverviewStats, UserStats, TeamStats, SemesterStats } from '../types';
@@ -8,6 +9,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 
 export default function AdminPanel() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'roster' | 'users' | 'teams' | 'templates' | 'stats' | 'logs' | 'export'>('roster');
 
   if (user?.role !== 'ADMIN') {
@@ -23,7 +25,7 @@ export default function AdminPanel() {
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/images/MSA_main_clear.png" alt="MSA Logo" className="h-14 w-auto" />
+            <img src={theme === 'dark' ? '/images/White_Clear.png' : '/images/MSA_main_clear.png'} alt="MSA Logo" className="h-14 w-auto" />
             <h1 className="text-xl font-serif font-bold text-primary-500">Admin Panel</h1>
           </div>
           <div className="flex items-center gap-3">
@@ -356,6 +358,7 @@ function RosterSection({ semesterId }: { semesterId: number }) {
           <button onClick={() => setShowAdd(true)} className="text-xs text-primary-500 hover:underline">+ Add Selected</button>
         </div>
       </div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Admins can now be added to the roster and assigned tasks.</p>
 
       {roster.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">No members in this semester's roster yet.</p>
@@ -365,6 +368,7 @@ function RosterSection({ semesterId }: { semesterId: number }) {
             <thead className="bg-gray-50 dark:bg-gray-600">
               <tr>
                 <th className="text-left py-2 px-3 dark:text-gray-200">Name</th>
+                <th className="text-left py-2 px-3 dark:text-gray-200">Role</th>
                 <th className="text-left py-2 px-3 dark:text-gray-200">Team</th>
                 <th className="text-right py-2 px-3 dark:text-gray-200">Action</th>
               </tr>
@@ -373,6 +377,11 @@ function RosterSection({ semesterId }: { semesterId: number }) {
               {roster.map((m) => (
                 <tr key={m.user_id} className="border-t dark:border-gray-600">
                   <td className="py-2 px-3 dark:text-gray-200">{m.display_name}</td>
+                  <td className="py-2 px-3">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${m.role === 'ADMIN' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200'}`}>
+                      {m.role}
+                    </span>
+                  </td>
                   <td className="py-2 px-3">{m.team_name ? <span className="text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">{m.team_name}</span> : <span className="dark:text-gray-400">-</span>}</td>
                   <td className="py-2 px-3 text-right">
                     <button onClick={() => handleRemove(m.user_id)} className="text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
@@ -416,6 +425,9 @@ function AddToRosterForm({ available, onAdd, onCancel }: { available: api.Roster
           <label key={u.user_id} className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b dark:border-gray-600 last:border-b-0 cursor-pointer dark:text-gray-200">
             <input type="checkbox" checked={selected.includes(u.user_id)} onChange={() => toggle(u.user_id)} className="rounded" />
             <span>{u.display_name}</span>
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${u.role === 'ADMIN' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200'}`}>
+              {u.role}
+            </span>
             {u.team_name && <span className="text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">{u.team_name}</span>}
           </label>
         ))}

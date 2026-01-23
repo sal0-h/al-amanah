@@ -4,7 +4,7 @@ from typing import List
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.models import User, Semester, RosterMember, Role, Team
+from app.models import User, Semester, RosterMember, Team
 from app.middleware.auth import get_admin_user
 
 router = APIRouter(prefix="/api/semesters", tags=["roster"])
@@ -111,13 +111,12 @@ async def add_all_to_roster(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Add all existing users to a semester's roster."""
+    """Add all existing users (including admins) to a semester's roster."""
     semester = db.query(Semester).filter(Semester.id == semester_id).first()
     if not semester:
         raise HTTPException(status_code=404, detail="Semester not found")
     
-    # Get all non-admin users
-    users = db.query(User).filter(User.role != Role.ADMIN).all()
+    users = db.query(User).all()
     
     added = 0
     skipped = 0
@@ -167,7 +166,7 @@ async def get_available_users(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Get users NOT in the semester's roster (excluding admins)."""
+    """Get users NOT in the semester's roster (admins included)."""
     semester = db.query(Semester).filter(Semester.id == semester_id).first()
     if not semester:
         raise HTTPException(status_code=404, detail="Semester not found")
@@ -177,10 +176,8 @@ async def get_available_users(
         RosterMember.semester_id == semester_id
     ).all()]
     
-    # Get users not in roster and not admin
     available = db.query(User).filter(
-        User.id.notin_(roster_user_ids) if roster_user_ids else True,
-        User.role != Role.ADMIN
+        User.id.notin_(roster_user_ids) if roster_user_ids else True
     ).all()
     
     return [

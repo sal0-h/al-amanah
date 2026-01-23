@@ -128,7 +128,7 @@ class TestAddAllToRoster:
     """Test POST /api/semesters/{id}/roster/add-all endpoint."""
     
     def test_add_all_to_roster(self, admin_client, db_session, semester, member_user):
-        """Admin can add all non-admin users."""
+        """Admin can add all users including admins."""
         from app.models import User, Role
         from app.middleware.auth import hash_password
         
@@ -146,18 +146,8 @@ class TestAddAllToRoster:
         response = admin_client.post(f"/api/semesters/{semester.id}/roster/add-all")
         assert response.status_code == 200
         result = response.json()
-        assert result["added"] >= 2  # At least the 2 new users
-    
-    def test_add_all_excludes_admins(self, admin_client, semester, admin_user, member_user):
-        """Add all excludes admin users."""
-        response = admin_client.post(f"/api/semesters/{semester.id}/roster/add-all")
-        assert response.status_code == 200
-        
-        # Check roster doesn't include admin
-        roster_response = admin_client.get(f"/api/semesters/{semester.id}/roster")
-        roster = roster_response.json()
-        usernames = [r["username"] for r in roster]
-        assert "admin" not in usernames
+        # Should include admin and existing members (admin, member_user, +2 new)
+        assert result["added"] == 4
 
 
 class TestRemoveFromRoster:
@@ -196,11 +186,11 @@ class TestAvailableUsers:
         # member_user is in roster, so shouldn't be available
         usernames = [u["username"] for u in available]
         assert "member" not in usernames
-        # admin should also not be in available (excluded)
-        assert "admin" not in usernames
+        # admin is allowed to be added, so should be listed
+        assert "admin" in usernames
     
-    def test_available_excludes_admins(self, admin_client, db_session, semester):
-        """Available users excludes admins."""
+    def test_available_includes_admins(self, admin_client, db_session, semester):
+        """Available users includes admins when not already in roster."""
         from app.models import User, Role
         from app.middleware.auth import hash_password
         
@@ -216,4 +206,4 @@ class TestAvailableUsers:
         response = admin_client.get(f"/api/semesters/{semester.id}/available-users")
         available = response.json()
         usernames = [u["username"] for u in available]
-        assert "admin2" not in usernames
+        assert "admin2" in usernames
