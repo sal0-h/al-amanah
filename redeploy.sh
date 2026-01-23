@@ -22,6 +22,9 @@ cd "$PROJECT_DIR"
 $COMPOSE_CMD build --pull
 $COMPOSE_CMD up -d --remove-orphans
 
+# Restart nginx to refresh upstream DNS (backend IP may change)
+$COMPOSE_CMD restart nginx >/dev/null 2>&1 || true
+
 echo "🧹 Pruning old dangling images..."
 docker image prune -f >/dev/null 2>&1 || true
 
