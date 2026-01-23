@@ -233,7 +233,7 @@ These require design changes:
 
 ### ✅ Completed (14 bugs fixed)
 1. **Import transaction atomicity** - Single commit per semester, uses relationships
-2. **Discord ID validation** - Regex validation `^\d{18}$`, whitespace trimming
+2. **Discord ID validation** - Regex validation `^\d{17,20}$`, whitespace trimming
 3. **HTTPS auto-detection** - Cloudflare header detection (`cf-visitor`, `X-Forwarded-Proto`)
 4. **N+1 query optimization** - Eager loading with `joinedload()`
 5. **Team validation in templates** - Pre-validate teams, return 400 if missing
@@ -243,7 +243,7 @@ These require design changes:
 9. **PWA manifest fields** - Added `id`, `scope`, `description`, `orientation`
 10. **Logo theme reactivity** - `key={theme}` forces remount
 11. **CORS preflight cache** - `max_age=3600` (1 hour)
-12. **Discord ID model** - Changed to `String(18)`
+12. **Discord ID model** - Changed to `String(20)` for 17-20 digit snowflakes
 13. **Icon purpose** - Fixed to `any` (not claiming maskable)
 14. **Tooltip clarity** - Week boundary semantics documented
 

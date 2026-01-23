@@ -17,8 +17,8 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     display_name = Column(String(100), nullable=False)
-    # Discord IDs are exactly 18 digits
-    discord_id = Column(String(18), nullable=True)
+    # Discord IDs are 17-20 digit snowflakes
+    discord_id = Column(String(20), nullable=True)
     role = Column(Enum(Role), default=Role.MEMBER, nullable=False)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

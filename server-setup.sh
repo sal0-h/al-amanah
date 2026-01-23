@@ -1,13 +1,12 @@
 #!/bin/bash
 # =============================================================================
-# Al-Amanah Task Tracker - Simple Server Setup
-# =============================================================================
-# This script sets up EVERYTHING and keeps your website running 24/7
-# Just run: ./server-setup.sh
+# Al-Amanah Task Tracker - Server Setup (single host)
+# Runs Docker, builds images, and starts the stack. Re-run safe for upgrades.
+# Usage: ./server-setup.sh
 # =============================================================================
 
 set -e
-PROJECT_DIR="/home/salman/coding/al-amanah"
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -113,18 +112,9 @@ echo "╚═══════════════════════�
 echo ""
 echo "Your website is now running at: http://localhost"
 echo ""
-echo "To make it accessible from the internet with Cloudflare:"
-echo ""
-echo "  1. Install Cloudflare Tunnel:"
-echo "     curl -fsSL https://pkg.cloudflare.com/cloudflared-ascii.repo | sudo tee /etc/yum.repos.d/cloudflared.repo"
-echo "     # OR for Ubuntu/Debian:"
-echo "     curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb"
-echo "     sudo dpkg -i cloudflared.deb"
-echo ""
-echo "  2. Run the tunnel (quick test - gives you a URL instantly):"
-echo "     cloudflared tunnel --url http://localhost:80"
-echo ""
-echo "  3. For permanent setup, see: $PROJECT_DIR/CLOUDFLARE_DEPLOYMENT.md"
+echo "Expose via Cloudflare Tunnel (recommended):"
+echo "  Quick test: cloudflared tunnel --url http://localhost:80"
+echo "  Permanent named tunnel (msa-tracker) -> tasks.cmuqmsa.org: see $PROJECT_DIR/CLOUDFLARE_DEPLOYMENT.md"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Useful commands:"

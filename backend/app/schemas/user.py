@@ -16,9 +16,10 @@ class UserBase(BaseModel):
     @classmethod
     def validate_discord_id(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and v.strip():
-            if not re.match(r'^\d{18}$', v.strip()):
-                raise ValueError('Discord ID must be exactly 18 digits')
-            return v.strip()
+            v = v.strip()
+            if not re.match(r'^\d{17,20}$', v):
+                raise ValueError('Discord ID must be 17-20 digits')
+            return v
         return None
 
 
@@ -37,9 +38,10 @@ class UserUpdate(BaseModel):
     @classmethod
     def validate_discord_id(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and v.strip():
-            if not re.match(r'^\d{18}$', v.strip()):
-                raise ValueError('Discord ID must be exactly 18 digits')
-            return v.strip()
+            v = v.strip()
+            if not re.match(r'^\d{17,20}$', v):
+                raise ValueError('Discord ID must be 17-20 digits')
+            return v
         return None
 
 

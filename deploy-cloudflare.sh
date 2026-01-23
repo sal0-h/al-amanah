@@ -1,8 +1,19 @@
 #!/bin/bash
-# Cloudflare Tunnel Quick Deploy Script
-# Usage: ./deploy-cloudflare.sh
+# Cloudflare Tunnel Deploy
+# Usage: CF env file (optional): CLOUDFLARE_ENV=.cloudflared.env ./deploy-cloudflare.sh
+# Vars: CF_TUNNEL_NAME=msa-tracker, CF_TUNNEL_HOSTNAME=tasks.cmuqmsa.org, CF_LOCAL_SERVICE=http://localhost:80
 
 set -e
+
+ENV_FILE="${CLOUDFLARE_ENV:-.env}"
+if [ -f "$ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+fi
+
+TUNNEL_NAME="${CF_TUNNEL_NAME:-}"
+TUNNEL_HOSTNAME="${CF_TUNNEL_HOSTNAME:-}"
+LOCAL_SERVICE="${CF_LOCAL_SERVICE:-http://localhost:80}"
 
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -93,7 +104,16 @@ if [ ! -f "docker-compose.yml" ]; then
     exit 1
 fi
 
-docker-compose up -d > /dev/null 2>&1
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+elif docker-compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+else
+    echo -e "${RED}✗ Docker Compose is not installed. Please install it first.${NC}"
+    exit 1
+fi
+
+$COMPOSE_CMD up -d > /dev/null 2>&1
 echo -e "${GREEN}✓ Containers started${NC}"
 
 # Wait a bit for containers to be ready
@@ -101,24 +121,62 @@ sleep 3
 
 # Step 4: Test local health
 echo -e "\n${YELLOW}[4/5]${NC} Testing local deployment..."
-HEALTH=$(curl -s http://localhost/api/health 2>/dev/null || echo "")
+HEALTH=$(curl -s "${LOCAL_SERVICE%/}/api/health" 2>/dev/null || echo "")
 if [ "$HEALTH" = '{"status":"healthy"}' ]; then
     echo -e "${GREEN}✓ Local deployment healthy${NC}"
 else
-    echo -e "${RED}✗ Local deployment not responding. Check logs: docker-compose logs${NC}"
+    echo -e "${RED}✗ Local deployment not responding. Check logs: docker compose logs${NC}"
     exit 1
 fi
 
 # Step 5: Start Cloudflare Tunnel
 echo -e "\n${YELLOW}[5/5]${NC} Starting Cloudflare Tunnel..."
 echo -e "${BLUE}════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}Starting tunnel... Your public URL will appear below:${NC}"
-echo -e "${BLUE}════════════════════════════════════════════════════════${NC}\n"
 
-# Run tunnel in foreground (user can Ctrl+C to stop)
-cloudflared tunnel --url http://localhost:80
+if [ -n "$TUNNEL_NAME" ] || [ -n "$TUNNEL_HOSTNAME" ]; then
+    if [ -z "$TUNNEL_NAME" ] || [ -z "$TUNNEL_HOSTNAME" ]; then
+        echo -e "${RED}✗ Set both CF_TUNNEL_NAME and CF_TUNNEL_HOSTNAME (or leave both empty for a quick URL).${NC}"
+        exit 1
+    fi
 
-# This line only runs if user stops the tunnel
-echo -e "\n${YELLOW}Tunnel stopped. Your app is still running locally at http://localhost${NC}"
-echo -e "${YELLOW}The app automatically handles HTTPS and CORS - no .env changes needed!${NC}"
-echo -e "${YELLOW}To restart tunnel: cloudflared tunnel --url http://localhost:80${NC}"
+    CONFIG_FILE="$HOME/.cloudflared/config.yml"
+    mkdir -p "$HOME/.cloudflared"
+
+    # Check if tunnel exists, create if not
+    TUNNEL_ID=$(cloudflared tunnel list 2>/dev/null | grep "${TUNNEL_NAME}" | awk '{print $1}')
+    if [ -z "$TUNNEL_ID" ]; then
+        echo -e "${YELLOW}Creating tunnel ${TUNNEL_NAME}...${NC}"
+        cloudflared tunnel create "$TUNNEL_NAME"
+        TUNNEL_ID=$(cloudflared tunnel list 2>/dev/null | grep "${TUNNEL_NAME}" | awk '{print $1}')
+    fi
+
+    # Find credentials file (cloudflared names it by tunnel ID, not name)
+    CREDS_FILE="$HOME/.cloudflared/${TUNNEL_ID}.json"
+    if [ ! -f "$CREDS_FILE" ]; then
+        echo -e "${RED}✗ Credentials file not found at ${CREDS_FILE}${NC}"
+        echo -e "${RED}  Try: cloudflared tunnel delete ${TUNNEL_NAME} && cloudflared tunnel create ${TUNNEL_NAME}${NC}"
+        exit 1
+    fi
+
+    cat > "$CONFIG_FILE" <<EOF
+tunnel: ${TUNNEL_ID}
+credentials-file: ${CREDS_FILE}
+ingress:
+  - hostname: ${TUNNEL_HOSTNAME}
+    service: ${LOCAL_SERVICE}
+  - service: http_status:404
+EOF
+
+    echo -e "${YELLOW}Routing DNS ${TUNNEL_HOSTNAME} -> ${TUNNEL_NAME}${NC}"
+    cloudflared tunnel route dns "$TUNNEL_NAME" "$TUNNEL_HOSTNAME"
+
+    echo -e "${GREEN}✓ Config written to ${CONFIG_FILE}${NC}"
+    echo -e "${GREEN}Running named tunnel ${TUNNEL_NAME} (Ctrl+C to stop)...${NC}"
+    cloudflared tunnel run "$TUNNEL_ID"
+else
+    echo -e "${GREEN}Starting quick tunnel (random *.trycloudflare.com)...${NC}"
+    cloudflared tunnel --url "$LOCAL_SERVICE"
+fi
+
+echo -e "\n${YELLOW}Tunnel stopped. App still at ${LOCAL_SERVICE}${NC}"
+echo -e "${YELLOW}Restart quick tunnel: cloudflared tunnel --url ${LOCAL_SERVICE}${NC}"

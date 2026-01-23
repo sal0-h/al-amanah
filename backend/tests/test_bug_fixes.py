@@ -11,7 +11,7 @@ class TestDiscordIDValidation:
     """Test Discord ID validation (Bug #2 - High)"""
     
     def test_valid_discord_id_18_digits(self, admin_client, db_session):
-        """Valid Discord ID with exactly 18 digits should work"""
+        """Valid Discord ID with 18 digits should work"""
         response = admin_client.post("/api/users", json={
             "username": "testuser1",
             "password": "test123",
@@ -23,8 +23,21 @@ class TestDiscordIDValidation:
         data = response.json()
         assert data["discord_id"] == "123456789012345678"
     
+    def test_valid_discord_id_19_digits(self, admin_client, db_session):
+        """Valid Discord ID with 19 digits should work (newer accounts)"""
+        response = admin_client.post("/api/users", json={
+            "username": "testuser1b",
+            "password": "test123",
+            "display_name": "Test User 19",
+            "discord_id": "1325416532368556082",
+            "role": "MEMBER"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["discord_id"] == "1325416532368556082"
+    
     def test_invalid_discord_id_too_short(self, admin_client):
-        """Discord ID with less than 18 digits should fail"""
+        """Discord ID with less than 17 digits should fail"""
         response = admin_client.post("/api/users", json={
             "username": "testuser2",
             "password": "test123",
@@ -34,15 +47,15 @@ class TestDiscordIDValidation:
         })
         assert response.status_code == 422
         error_detail = response.json()["detail"]
-        assert any("18 digits" in str(e) for e in error_detail)
+        assert any("17-20 digits" in str(e) for e in error_detail)
     
     def test_invalid_discord_id_too_long(self, admin_client):
-        """Discord ID with more than 18 digits should fail"""
+        """Discord ID with more than 20 digits should fail"""
         response = admin_client.post("/api/users", json={
             "username": "testuser3",
             "password": "test123",
             "display_name": "Test User",
-            "discord_id": "1234567890123456789",
+            "discord_id": "123456789012345678901",
             "role": "MEMBER"
         })
         assert response.status_code == 422
