@@ -724,7 +724,7 @@ function WeekTemplateForm({ onSave, onCancel }: { onSave: (weekTemplateId: strin
     onSave(selectedId);
   };
 
-  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   if (loading) return <div className="text-center py-4">Loading week templates...</div>;
 
@@ -1481,7 +1481,7 @@ function TemplateManager() {
 
   if (loading) return <div className="text-center py-8 dark:text-gray-300">Loading...</div>;
 
-  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   return (
     <div className="space-y-6">
@@ -1763,7 +1763,7 @@ function WeekTemplateEditorForm({ initial, eventTemplates, onSave, onCancel }: {
   const [description, setDescription] = useState(initial?.description || '');
   const [events, setEvents] = useState<api.WeekEventTemplate[]>(initial?.events || []);
 
-  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const handleAddEvent = () => {
     setEvents([...events, { event_template_id: eventTemplates[0]?.id || '', day_of_week: 0, default_time: '12:00' }]);

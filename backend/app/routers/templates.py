@@ -166,7 +166,7 @@ DEFAULT_WEEK_TEMPLATES: List[WeekTemplateOut] = [
         events=[
             WeekEventTemplateSchema(
                 event_template_id="sweet_sunday",
-                day_of_week=0,      # Sunday
+                day_of_week=0,      # Sunday (week starts Sunday)
                 default_time="13:00"
             ),
             WeekEventTemplateSchema(
@@ -184,7 +184,7 @@ DEFAULT_WEEK_TEMPLATES: List[WeekTemplateOut] = [
         events=[
             WeekEventTemplateSchema(
                 event_template_id="sweet_sunday",
-                day_of_week=0,
+                day_of_week=0,      # Sunday (week starts Sunday)
                 default_time="13:00"
             ),
             WeekEventTemplateSchema(
@@ -202,7 +202,7 @@ DEFAULT_WEEK_TEMPLATES: List[WeekTemplateOut] = [
         events=[
             WeekEventTemplateSchema(
                 event_template_id="sweet_sunday",
-                day_of_week=0,
+                day_of_week=0,      # Sunday (week starts Sunday)
                 default_time="13:00"
             ),
             WeekEventTemplateSchema(
