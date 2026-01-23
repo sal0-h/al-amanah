@@ -46,7 +46,7 @@ class EventTemplateUpdate(BaseModel):
 
 class WeekEventTemplateSchema(BaseModel):
     event_template_id: str
-    day_of_week: int  # 0=Monday, 6=Sunday
+    day_of_week: int  # 0=Sunday, 6=Saturday (aligned to semester start_date)
     default_time: str  # HH:MM format
 
 
@@ -77,146 +77,143 @@ class WeekTemplateUpdate(BaseModel):
 
 DEFAULT_EVENT_TEMPLATES: List[EventTemplateOut] = [
     EventTemplateOut(
-        id="jumuah", name="Jumuah Prayer", is_custom=False,
+        id="email", name="Weekly Announcement Email", is_custom=False,
         tasks=[
-            TaskTemplateSchema(title="Send email reminder (Thursday)", task_type="STANDARD"),
-            TaskTemplateSchema(title="Prepare khutbah slides", task_type="STANDARD"),
-            TaskTemplateSchema(title="Setup audio equipment", task_type="SETUP"),
-            TaskTemplateSchema(title="Arrange prayer rugs", task_type="SETUP"),
-            TaskTemplateSchema(title="Photography/Recording", task_type="STANDARD", assigned_team_name="Media"),
-        ]
-    ),
-    EventTemplateOut(
-        id="halaqa", name="Weekly Halaqa", is_custom=False,
-        tasks=[
-            TaskTemplateSchema(title="Confirm speaker/topic", task_type="STANDARD"),
-            TaskTemplateSchema(title="Post social media announcement", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Setup chairs & projector", task_type="SETUP"),
-            TaskTemplateSchema(title="Prepare refreshments", task_type="STANDARD"),
+            TaskTemplateSchema(title="Create event poster", task_type="STANDARD", assigned_team_name="Media"),
+            TaskTemplateSchema(title="Draft email", task_type="STANDARD", assigned_team_name="Secretary"),
+            TaskTemplateSchema(title="Review email", task_type="STANDARD", assigned_team_name="P/VP"),
+            TaskTemplateSchema(title="Send email", task_type="STANDARD", assigned_team_name="Secretary"),
         ]
     ),
     EventTemplateOut(
         id="sweet_sunday", name="Sweet Sunday", is_custom=False,
         tasks=[
-            TaskTemplateSchema(title="Order desserts/snacks", task_type="STANDARD"),
-            TaskTemplateSchema(title="Create event poster", task_type="STANDARD", assigned_team_name="Media"),
+            TaskTemplateSchema(title="Decide on SS Question", task_type="STANDARD"),
+            TaskTemplateSchema(title="Submit Event Form", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Order sweets", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Pick up sweets", task_type="STANDARD"),
+            TaskTemplateSchema(title="Shift 1 Person 1", task_type="STANDARD"),
+            TaskTemplateSchema(title="Shift 1 Person 2", task_type="STANDARD"),
+            TaskTemplateSchema(title="Shift 2 Person 1", task_type="STANDARD"),
+            TaskTemplateSchema(title="Shift 2 Person 2", task_type="STANDARD"),
+            TaskTemplateSchema(title="Update Budget Tracker & Projection", task_type="STANDARD", assigned_team_name="Finance"),
+            TaskTemplateSchema(title="Photography", task_type="STANDARD", assigned_team_name="Media"),
             TaskTemplateSchema(title="Post on Instagram", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Setup tables & decorations", task_type="SETUP"),
-            TaskTemplateSchema(title="Photography", task_type="STANDARD", assigned_team_name="Media"),
         ]
     ),
     EventTemplateOut(
-        id="kk", name="Karak & Konversations (K&K)", is_custom=False,
+        id="kk", name="Karak & Kookies (K&K)", is_custom=False,
         tasks=[
-            TaskTemplateSchema(title="Book venue", task_type="STANDARD"),
-            TaskTemplateSchema(title="Order karak/snacks", task_type="STANDARD"),
-            TaskTemplateSchema(title="Prepare discussion topics", task_type="STANDARD"),
+            TaskTemplateSchema(title="Submit Event Form", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Order kookies", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Decide topic and provide small summary", task_type="STANDARD"),
+            TaskTemplateSchema(title="Hang up posters 1st floor", task_type="STANDARD"),
+            TaskTemplateSchema(title="Hang up posters 2nd floor", task_type="STANDARD"),
+            TaskTemplateSchema(title="Hang up posters 3rd floor", task_type="STANDARD"),
+            TaskTemplateSchema(title="Sharing poster on WhatsApp", task_type="STANDARD", assigned_team_name="P/VP"),
+            TaskTemplateSchema(title="Sending 'Happening Today' reminder on WhatsApp", task_type="STANDARD", assigned_team_name="P/VP"),
+            TaskTemplateSchema(title="Picking up kookies", task_type="STANDARD"),
+            TaskTemplateSchema(title="Picking up karak", task_type="STANDARD"),
+            TaskTemplateSchema(title="Set up seating 1", task_type="SETUP"),
+            TaskTemplateSchema(title="Set up seating 2", task_type="SETUP"),
+            TaskTemplateSchema(title="Set up speaker", task_type="SETUP"),
+            TaskTemplateSchema(title="Update Budget Tracker & Projection", task_type="STANDARD", assigned_team_name="Finance"),
+            TaskTemplateSchema(title="Submit expense forms for the week", task_type="STANDARD", assigned_team_name="Finance"),
             TaskTemplateSchema(title="Create event poster", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Send email blast", task_type="STANDARD"),
-        ]
-    ),
-    EventTemplateOut(
-        id="email_announcement", name="Weekly Email Announcement", is_custom=False,
-        tasks=[
-            TaskTemplateSchema(title="Collect updates from board members", task_type="STANDARD"),
-            TaskTemplateSchema(title="Draft email content", task_type="STANDARD"),
-            TaskTemplateSchema(title="Design email graphics", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Send via mailing list", task_type="STANDARD"),
-        ]
-    ),
-    EventTemplateOut(
-        id="eid_prep", name="Eid Celebration", is_custom=False,
-        tasks=[
-            TaskTemplateSchema(title="Book venue", task_type="STANDARD"),
-            TaskTemplateSchema(title="Plan menu & order food", task_type="STANDARD"),
-            TaskTemplateSchema(title="Create Eid poster", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Send invitations", task_type="STANDARD"),
-            TaskTemplateSchema(title="Setup decorations", task_type="SETUP"),
-            TaskTemplateSchema(title="Arrange seating", task_type="SETUP"),
-            TaskTemplateSchema(title="Photography & video", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Post event recap", task_type="STANDARD", assigned_team_name="Media"),
-        ]
-    ),
-    EventTemplateOut(
-        id="iftar", name="Community Iftar", is_custom=False,
-        tasks=[
-            TaskTemplateSchema(title="Order food", task_type="STANDARD"),
-            TaskTemplateSchema(title="Coordinate volunteers", task_type="STANDARD"),
-            TaskTemplateSchema(title="Setup food stations", task_type="SETUP"),
-            TaskTemplateSchema(title="Prepare dates & water", task_type="SETUP"),
-            TaskTemplateSchema(title="Photography", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Cleanup coordination", task_type="STANDARD"),
         ]
     ),
     EventTemplateOut(
         id="speaker_event", name="Speaker Event", is_custom=False,
         tasks=[
             TaskTemplateSchema(title="Confirm speaker & topic", task_type="STANDARD"),
-            TaskTemplateSchema(title="Create event poster", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Post on social media", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Send email announcement", task_type="STANDARD"),
-            TaskTemplateSchema(title="Setup room & AV equipment", task_type="SETUP"),
+            TaskTemplateSchema(title="Submit Event Form", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Order food", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Setup room & recording", task_type="SETUP"),
+            TaskTemplateSchema(title="Sharing poster on WhatsApp", task_type="STANDARD", assigned_team_name="P/VP"),
+            TaskTemplateSchema(title="Sending 'Happening Today' reminder on WhatsApp", task_type="STANDARD", assigned_team_name="P/VP"),
+            TaskTemplateSchema(title="Picking up food", task_type="STANDARD"),
+            TaskTemplateSchema(title="Update Budget Tracker & Projection", task_type="STANDARD", assigned_team_name="Finance"),
+            TaskTemplateSchema(title="Submit expense forms for the week", task_type="STANDARD", assigned_team_name="Finance"),
             TaskTemplateSchema(title="Photography", task_type="STANDARD", assigned_team_name="Media"),
+            TaskTemplateSchema(title="Post on social media", task_type="STANDARD", assigned_team_name="Media"),
         ]
     ),
     EventTemplateOut(
         id="dine_reflect", name="Dine & Reflect", is_custom=False,
         tasks=[
-            TaskTemplateSchema(title="Book restaurant/venue", task_type="STANDARD"),
-            TaskTemplateSchema(title="Prepare reflection topics", task_type="STANDARD"),
-            TaskTemplateSchema(title="Create event poster", task_type="STANDARD", assigned_team_name="Media"),
-            TaskTemplateSchema(title="Send RSVPs", task_type="STANDARD"),
-            TaskTemplateSchema(title="Photography", task_type="STANDARD", assigned_team_name="Media"),
+            TaskTemplateSchema(title="Submit Event Form", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Order food", task_type="STANDARD", assigned_team_name="Logistics"),
+            TaskTemplateSchema(title="Decide video", task_type="STANDARD"),
+            TaskTemplateSchema(title="Hang up posters 1st floor", task_type="STANDARD"),
+            TaskTemplateSchema(title="Hang up posters 2nd floor", task_type="STANDARD"),
+            TaskTemplateSchema(title="Hang up posters 3rd floor", task_type="STANDARD"),
+            TaskTemplateSchema(title="Sharing poster on WhatsApp", task_type="STANDARD", assigned_team_name="P/VP"),
+            TaskTemplateSchema(title="Sending 'Happening Today' reminder on WhatsApp", task_type="STANDARD", assigned_team_name="P/VP"),
+            TaskTemplateSchema(title="Picking up food", task_type="STANDARD"),
+            TaskTemplateSchema(title="Bring banner", task_type="SETUP"),
+            TaskTemplateSchema(title="Update Budget Tracker & Projection", task_type="STANDARD", assigned_team_name="Finance"),
+            TaskTemplateSchema(title="Submit expense forms for the week", task_type="STANDARD", assigned_team_name="Finance"),
         ]
-    ),
-    EventTemplateOut(
-        id="custom", name="Custom Event (No Tasks)", is_custom=False, tasks=[]
-    ),
+    )
 ]
 
 DEFAULT_WEEK_TEMPLATES: List[WeekTemplateOut] = [
     WeekTemplateOut(
-        id="sweet_sunday_kk", name="Sweet Sunday + K&K",
-        description="Sweet Sunday on Sunday, Karak & Konversations on Thursday", is_custom=False,
+        id="sweet_sunday_kk",
+        name="Sweet Sunday + K&K",
+        description="Sweet Sunday on Sunday, Karak & Konversations on Thursday",
+        is_custom=False,
         events=[
-            WeekEventTemplateSchema(event_template_id="sweet_sunday", day_of_week=6, default_time="14:00"),
-            WeekEventTemplateSchema(event_template_id="kk", day_of_week=3, default_time="18:00"),
+            WeekEventTemplateSchema(
+                event_template_id="sweet_sunday",
+                day_of_week=0,      # Sunday
+                default_time="13:00"
+            ),
+            WeekEventTemplateSchema(
+                event_template_id="kk",
+                day_of_week=4,      # Thursday
+                default_time="17:30"
+            ),
         ]
     ),
     WeekTemplateOut(
-        id="sweet_sunday_speaker", name="Sweet Sunday + Speaker Event",
-        description="Sweet Sunday on Sunday, Speaker Event on Wednesday", is_custom=False,
+        id="sweet_sunday_speaker",
+        name="Sweet Sunday + Speaker Event",
+        description="Sweet Sunday on Sunday, Speaker Event on Wednesday",
+        is_custom=False,
         events=[
-            WeekEventTemplateSchema(event_template_id="sweet_sunday", day_of_week=6, default_time="14:00"),
-            WeekEventTemplateSchema(event_template_id="speaker_event", day_of_week=2, default_time="18:00"),
+            WeekEventTemplateSchema(
+                event_template_id="sweet_sunday",
+                day_of_week=0,
+                default_time="13:00"
+            ),
+            WeekEventTemplateSchema(
+                event_template_id="speaker_event",
+                day_of_week=3,      # Wednesday
+                default_time="18:00"
+            ),
         ]
     ),
     WeekTemplateOut(
-        id="sweet_sunday_dine", name="Sweet Sunday + Dine & Reflect",
-        description="Sweet Sunday on Sunday, Dine & Reflect on Thursday", is_custom=False,
+        id="sweet_sunday_dine",
+        name="Sweet Sunday + Dine & Reflect",
+        description="Sweet Sunday on Sunday, Dine & Reflect on Thursday",
+        is_custom=False,
         events=[
-            WeekEventTemplateSchema(event_template_id="sweet_sunday", day_of_week=6, default_time="14:00"),
-            WeekEventTemplateSchema(event_template_id="dine_reflect", day_of_week=3, default_time="19:00"),
+            WeekEventTemplateSchema(
+                event_template_id="sweet_sunday",
+                day_of_week=0,
+                default_time="13:00"
+            ),
+            WeekEventTemplateSchema(
+                event_template_id="dine_reflect",
+                day_of_week=4,      # Thursday
+                default_time="17:30"
+            ),
         ]
-    ),
-    WeekTemplateOut(
-        id="jumuah_halaqa", name="Jumuah + Halaqa",
-        description="Jumuah Prayer on Friday, Weekly Halaqa on Tuesday", is_custom=False,
-        events=[
-            WeekEventTemplateSchema(event_template_id="jumuah", day_of_week=4, default_time="12:30"),
-            WeekEventTemplateSchema(event_template_id="halaqa", day_of_week=1, default_time="18:00"),
-        ]
-    ),
-    WeekTemplateOut(
-        id="full_week", name="Full Activity Week",
-        description="Sweet Sunday, Halaqa on Tuesday, Jumuah on Friday", is_custom=False,
-        events=[
-            WeekEventTemplateSchema(event_template_id="sweet_sunday", day_of_week=6, default_time="14:00"),
-            WeekEventTemplateSchema(event_template_id="halaqa", day_of_week=1, default_time="18:00"),
-            WeekEventTemplateSchema(event_template_id="jumuah", day_of_week=4, default_time="12:30"),
-        ]
-    ),
+    )
 ]
+
 
 
 # ============== HELPER FUNCTIONS ==============

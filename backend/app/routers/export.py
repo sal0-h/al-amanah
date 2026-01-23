@@ -261,6 +261,11 @@ async def import_data(
                             team = db.query(Team).filter(Team.name == task_data.assigned_team_name).first()
                             assigned_team_id = team.id if team else None
                         
+                        completed_by = None
+                        if task_data.completed_by_username:
+                            completer = db.query(User).filter(User.username == task_data.completed_by_username).first()
+                            completed_by = completer.id if completer else None
+                        
                         task = Task(
                             event_id=None,  # Will be set via relationship
                             title=task_data.title,
@@ -269,6 +274,7 @@ async def import_data(
                             status=TaskStatus[task_data.status],
                             assigned_to=assigned_to,
                             assigned_team_id=assigned_team_id,
+                            completed_by=completed_by,
                             cannot_do_reason=task_data.cannot_do_reason
                         )
                         task.event = event  # Use relationship

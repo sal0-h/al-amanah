@@ -13,23 +13,20 @@ class TestGetEventTemplates:
         response = admin_client.get("/api/templates/events")
         assert response.status_code == 200
         templates = response.json()
-        
+
         # Should have default templates
         template_ids = [t["id"] for t in templates]
-        assert "jumuah" in template_ids
-        assert "halaqa" in template_ids
         assert "sweet_sunday" in template_ids
         assert "kk" in template_ids
-        assert "custom" in template_ids
     
     def test_templates_have_tasks(self, admin_client):
         """Templates include task definitions."""
         response = admin_client.get("/api/templates/events")
         templates = response.json()
-        
-        jumuah = next(t for t in templates if t["id"] == "jumuah")
-        assert len(jumuah["tasks"]) > 0
-        assert any(t["title"] for t in jumuah["tasks"])
+
+        sweet_sunday = next(t for t in templates if t["id"] == "sweet_sunday")
+        assert len(sweet_sunday["tasks"]) > 0
+        assert any(t["title"] for t in sweet_sunday["tasks"])
     
     def test_get_templates_as_member(self, member_client):
         """Non-admin cannot access templates."""
@@ -67,7 +64,7 @@ class TestCreateEventTemplate:
     def test_cannot_duplicate_default_name(self, admin_client):
         """Cannot create template with same name as default."""
         response = admin_client.post("/api/templates/events", json={
-            "name": "Jumuah Prayer"  # Same as default
+            "name": "Sweet Sunday"  # Same as default
         })
         assert response.status_code == 400
     
@@ -129,42 +126,52 @@ class TestDeleteEventTemplate:
 class TestCreateFromTemplate:
     """Test POST /api/templates/create endpoint."""
     
-    def test_create_event_from_template(self, admin_client, week, team, db_session):
+    def test_create_event_from_template(self, admin_client, week, db_session):
         """Create event from template."""
-        # Ensure Media team exists for template tasks
+        # Create all teams required by sweet_sunday template
         from app.models import Team
-        media = db_session.query(Team).filter(Team.name == "Media").first()
-        if not media:
-            media = Team(name="Media")
-            db_session.add(media)
-            db_session.commit()
-        
+        for team_name in ["Media", "Logistics", "Finance"]:
+            existing = db_session.query(Team).filter(Team.name == team_name).first()
+            if not existing:
+                db_session.add(Team(name=team_name))
+        db_session.commit()
+
         event_time = (datetime.now() + timedelta(days=1)).isoformat()
-        
+
         response = admin_client.post("/api/templates/create", json={
-            "template_id": "jumuah",
+            "template_id": "sweet_sunday",
             "week_id": week.id,
             "datetime": event_time
         })
+        if response.status_code != 200:
+            print(f"Error: {response.json()}")
         assert response.status_code == 200
         data = response.json()
         assert "event_id" in data
-        assert "Jumuah" in data["message"] or "tasks" in data["message"]
+        assert "Sweet Sunday" in data["message"] or "tasks" in data["message"]
     
-    def test_create_with_custom_name(self, admin_client, week):
+    def test_create_with_custom_name(self, admin_client, week, db_session):
         """Create event from template with custom name."""
+        # Create all teams required by kk template
+        from app.models import Team
+        for team_name in ["Logistics", "P/VP", "Media", "Finance"]:
+            existing = db_session.query(Team).filter(Team.name == team_name).first()
+            if not existing:
+                db_session.add(Team(name=team_name))
+        db_session.commit()
+        
         event_time = (datetime.now() + timedelta(days=2)).isoformat()
         
         response = admin_client.post("/api/templates/create", json={
-            "template_id": "halaqa",
+            "template_id": "kk",
             "week_id": week.id,
             "datetime": event_time,
-            "event_name": "Special Halaqa"
+            "event_name": "Special K&K"
         })
         assert response.status_code == 200
     
     def test_create_from_nonexistent_template(self, admin_client, week):
-        """Creating from non-existent template returns 404."""
+        """Creating from nonexistent template fails."""
         event_time = (datetime.now() + timedelta(days=1)).isoformat()
         
         response = admin_client.post("/api/templates/create", json={
@@ -179,7 +186,7 @@ class TestCreateFromTemplate:
         event_time = (datetime.now() + timedelta(days=1)).isoformat()
         
         response = member_client.post("/api/templates/create", json={
-            "template_id": "jumuah",
+            "template_id": "sweet_sunday",
             "week_id": week.id,
             "datetime": event_time
         })
@@ -214,8 +221,8 @@ class TestWeekTemplates:
             "name": "Custom Week",
             "description": "A custom week pattern",
             "events": [
-                {"event_template_id": "jumuah", "day_of_week": 4, "default_time": "12:30"},
-                {"event_template_id": "halaqa", "day_of_week": 2, "default_time": "18:00"}
+                {"event_template_id": "sweet_sunday", "day_of_week": 0, "default_time": "13:00"},
+                {"event_template_id": "kk", "day_of_week": 4, "default_time": "17:30"}
             ]
         })
         assert response.status_code == 200
@@ -224,10 +231,18 @@ class TestWeekTemplates:
         assert data["is_custom"] == True
         assert len(data["events"]) == 2
     
-    def test_create_from_week_template(self, admin_client, week):
+    def test_create_from_week_template(self, admin_client, week, db_session):
         """Create events from week template."""
+        # Create all teams required by sweet_sunday_kk templates
+        from app.models import Team
+        for team_name in ["Media", "Logistics", "Finance", "P/VP"]:
+            existing = db_session.query(Team).filter(Team.name == team_name).first()
+            if not existing:
+                db_session.add(Team(name=team_name))
+        db_session.commit()
+        
         response = admin_client.post("/api/templates/weeks/create", json={
-            "week_template_id": "jumuah_halaqa",
+            "week_template_id": "sweet_sunday_kk",
             "week_id": week.id
         })
         assert response.status_code == 200

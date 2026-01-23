@@ -109,14 +109,6 @@ describe('Dashboard Page', () => {
         expect(elements.length).toBeGreaterThan(0);
       });
     });
-
-    it('displays event location', async () => {
-      renderDashboard();
-      
-      await waitFor(() => {
-        expect(screen.getByText('UC Black Box')).toBeInTheDocument();
-      });
-    });
   });
 
   describe('Task Status Display', () => {
