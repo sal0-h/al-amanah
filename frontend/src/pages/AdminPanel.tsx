@@ -1499,17 +1499,6 @@ function TemplateManager() {
       alert(err.message || 'Failed to reset template');
     }
   }
-      return;
-    }
-    if (!confirm(`Delete template "${template.name}"?`)) return;
-    try {
-      const id = parseInt(template.id.replace('db_', ''));
-      await api.deleteWeekTemplate(id);
-      loadData();
-    } catch (err) {
-      console.error('Failed to delete:', err);
-    }
-  }
 
   if (loading) return <div className="text-center py-8 dark:text-gray-300">Loading...</div>;
 
