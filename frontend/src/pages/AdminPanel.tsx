@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, Calendar, FileText, Clock, Download, Upload, BarChart3, History } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronRight, Calendar, FileText, Clock, Download, Upload, BarChart3, History, RotateCcw } from 'lucide-react';
 import * as api from '../api/client';
 import type { Semester, Week, Event, Task, User, Team, AuditLogPage, OverviewStats, UserStats, TeamStats, SemesterStats } from '../types';
 import { formatEventDateTime, formatDate } from '../utils/dateFormat';
@@ -1420,9 +1420,9 @@ function TemplateManager() {
 
   async function handleSaveEventTemplate(data: { name: string; tasks: api.TaskTemplate[] }) {
     try {
-      if (editingEvent && editingEvent.is_custom) {
-        const id = parseInt(editingEvent.id.replace('db_', ''));
-        await api.updateEventTemplate(id, data);
+      if (editingEvent) {
+        // For both custom and default templates, use the ID as-is
+        await api.updateEventTemplate(editingEvent.id, data);
       } else {
         await api.createEventTemplate(data);
       }
@@ -1436,24 +1436,34 @@ function TemplateManager() {
 
   async function handleDeleteEventTemplate(template: api.EventTemplate) {
     if (!template.is_custom) {
-      alert('Cannot delete default templates');
+      alert('Cannot delete default templates. Use Reset to restore the original.');
       return;
     }
     if (!confirm(`Delete template "${template.name}"?`)) return;
     try {
-      const id = parseInt(template.id.replace('db_', ''));
-      await api.deleteEventTemplate(id);
+      await api.deleteEventTemplate(template.id);
       loadData();
     } catch (err) {
       console.error('Failed to delete:', err);
     }
   }
 
+  async function handleResetEventTemplate(template: api.EventTemplate) {
+    if (!template.can_reset) return;
+    if (!confirm(`Reset "${template.name}" back to its original default?`)) return;
+    try {
+      await api.resetEventTemplate(template.id);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset template');
+    }
+  }
+
   async function handleSaveWeekTemplate(data: { name: string; description?: string; events: api.WeekEventTemplate[] }) {
     try {
-      if (editingWeek && editingWeek.is_custom) {
-        const id = parseInt(editingWeek.id.replace('db_', ''));
-        await api.updateWeekTemplate(id, data);
+      if (editingWeek) {
+        // For both custom and default templates, use the ID as-is
+        await api.updateWeekTemplate(editingWeek.id, data);
       } else {
         await api.createWeekTemplate(data);
       }
@@ -1467,7 +1477,28 @@ function TemplateManager() {
 
   async function handleDeleteWeekTemplate(template: api.WeekTemplate) {
     if (!template.is_custom) {
-      alert('Cannot delete default templates');
+      alert('Cannot delete default templates. Use Reset to restore the original.');
+      return;
+    }
+    if (!confirm(`Delete template "${template.name}"?`)) return;
+    try {
+      await api.deleteWeekTemplate(template.id);
+      loadData();
+    } catch (err) {
+      console.error('Failed to delete:', err);
+    }
+  }
+
+  async function handleResetWeekTemplate(template: api.WeekTemplate) {
+    if (!template.can_reset) return;
+    if (!confirm(`Reset "${template.name}" back to its original default?`)) return;
+    try {
+      await api.resetWeekTemplate(template.id);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset template');
+    }
+  }
       return;
     }
     if (!confirm(`Delete template "${template.name}"?`)) return;
@@ -1509,6 +1540,8 @@ function TemplateManager() {
                   <span className="font-medium dark:text-white">{template.name}</span>
                   {template.is_custom ? (
                     <span className="text-xs px-2 py-0.5 bg-accent-100 dark:bg-accent-900 text-accent-700 dark:text-accent-300 rounded-full">Custom</span>
+                  ) : template.is_modified ? (
+                    <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded-full">Modified</span>
                   ) : (
                     <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full">Default</span>
                   )}
@@ -1518,21 +1551,30 @@ function TemplateManager() {
                 </div>
               </div>
               <div className="flex gap-1">
+                <button
+                  onClick={() => { setEditingEvent(template); setShowEventForm(true); }}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title="Edit template"
+                >
+                  <Edit2 size={14} />
+                </button>
+                {template.can_reset && (
+                  <button
+                    onClick={() => handleResetEventTemplate(template)}
+                    className="p-1 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400"
+                    title="Reset to default"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                )}
                 {template.is_custom && (
-                  <>
-                    <button
-                      onClick={() => { setEditingEvent(template); setShowEventForm(true); }}
-                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEventTemplate(template)}
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </>
+                  <button
+                    onClick={() => handleDeleteEventTemplate(template)}
+                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                    title="Delete template"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 )}
               </div>
             </div>
@@ -1563,6 +1605,8 @@ function TemplateManager() {
                   <span className="font-medium dark:text-white">{template.name}</span>
                   {template.is_custom ? (
                     <span className="text-xs px-2 py-0.5 bg-accent-100 dark:bg-accent-900 text-accent-700 dark:text-accent-300 rounded-full">Custom</span>
+                  ) : template.is_modified ? (
+                    <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded-full">Modified</span>
                   ) : (
                     <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full">Default</span>
                   )}
@@ -1582,21 +1626,30 @@ function TemplateManager() {
                 </div>
               </div>
               <div className="flex gap-1">
+                <button
+                  onClick={() => { setEditingWeek(template); setShowWeekForm(true); }}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title="Edit template"
+                >
+                  <Edit2 size={14} />
+                </button>
+                {template.can_reset && (
+                  <button
+                    onClick={() => handleResetWeekTemplate(template)}
+                    className="p-1 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400"
+                    title="Reset to default"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                )}
                 {template.is_custom && (
-                  <>
-                    <button
-                      onClick={() => { setEditingWeek(template); setShowWeekForm(true); }}
-                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteWeekTemplate(template)}
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </>
+                  <button
+                    onClick={() => handleDeleteWeekTemplate(template)}
+                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                    title="Delete template"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 )}
               </div>
             </div>

@@ -14,6 +14,10 @@ class EventTemplate(Base):
     # Store tasks as JSON array: [{"title": "...", "description": "...", "task_type": "STANDARD", "assigned_team_name": "Media"}]
     tasks_json = Column(JSON, default=list)
     
+    # If this overrides a default template, store the default template's ID here
+    # When set, this DB entry replaces the hardcoded template with this ID
+    overrides_default_id = Column(String(50), nullable=True, unique=True, index=True)
+    
     # Relationship to week template events
     week_template_events = relationship("WeekTemplateEvent", back_populates="event_template", cascade="all, delete-orphan")
 
@@ -25,6 +29,9 @@ class WeekTemplate(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, unique=True)
     description = Column(Text, nullable=True)
+    
+    # If this overrides a default template, store the default template's ID here
+    overrides_default_id = Column(String(50), nullable=True, unique=True, index=True)
     
     # Relationship to events in this week template
     events = relationship("WeekTemplateEvent", back_populates="week_template", cascade="all, delete-orphan")

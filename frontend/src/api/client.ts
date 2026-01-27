@@ -187,6 +187,8 @@ export interface EventTemplate {
   name: string;
   tasks: TaskTemplate[];
   is_custom: boolean;
+  is_modified: boolean;
+  can_reset: boolean;
 }
 
 export const getEventTemplates = () => 
@@ -201,14 +203,17 @@ export const createEventTemplate = (data: {
 }) =>
   request<EventTemplate>('/templates/events', { method: 'POST', body: JSON.stringify(data) });
 
-export const updateEventTemplate = (id: number, data: {
+export const updateEventTemplate = (id: string, data: {
   name?: string;
   tasks?: TaskTemplate[];
 }) =>
   request<EventTemplate>(`/templates/events/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
-export const deleteEventTemplate = (id: number) =>
+export const deleteEventTemplate = (id: string) =>
   request<void>(`/templates/events/${id}`, { method: 'DELETE' });
+
+export const resetEventTemplate = (id: string) =>
+  request<EventTemplate>(`/templates/events/${id}/reset`, { method: 'POST' });
 
 export const createFromTemplate = (data: {
   template_id: string;
@@ -234,6 +239,8 @@ export interface WeekTemplate {
   description: string | null;
   events: WeekEventTemplate[];
   is_custom: boolean;
+  is_modified: boolean;
+  can_reset: boolean;
 }
 
 export const getWeekTemplates = () => 
@@ -246,15 +253,18 @@ export const createWeekTemplate = (data: {
 }) =>
   request<WeekTemplate>('/templates/weeks', { method: 'POST', body: JSON.stringify(data) });
 
-export const updateWeekTemplate = (id: number, data: {
+export const updateWeekTemplate = (id: string, data: {
   name?: string;
   description?: string;
   events?: WeekEventTemplate[];
 }) =>
   request<WeekTemplate>(`/templates/weeks/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
-export const deleteWeekTemplate = (id: number) =>
+export const deleteWeekTemplate = (id: string) =>
   request<void>(`/templates/weeks/${id}`, { method: 'DELETE' });
+
+export const resetWeekTemplate = (id: string) =>
+  request<WeekTemplate>(`/templates/weeks/${id}/reset`, { method: 'POST' });
 
 export const createFromWeekTemplate = (data: {
   week_template_id: string;

@@ -52,9 +52,32 @@ def get_allowed_origins():
         return ["https://*"]
 
 
+def migrate_db():
+    """Run simple migrations for new columns (SQLite doesn't auto-add columns)."""
+    from sqlalchemy import text
+    
+    with engine.connect() as conn:
+        # Check and add overrides_default_id to event_templates
+        try:
+            conn.execute(text("SELECT overrides_default_id FROM event_templates LIMIT 1"))
+        except Exception:
+            logger.info("Adding overrides_default_id column to event_templates...")
+            conn.execute(text("ALTER TABLE event_templates ADD COLUMN overrides_default_id VARCHAR(50)"))
+            conn.commit()
+        
+        # Check and add overrides_default_id to week_templates
+        try:
+            conn.execute(text("SELECT overrides_default_id FROM week_templates LIMIT 1"))
+        except Exception:
+            logger.info("Adding overrides_default_id column to week_templates...")
+            conn.execute(text("ALTER TABLE week_templates ADD COLUMN overrides_default_id VARCHAR(50)"))
+            conn.commit()
+
+
 def init_db():
     """Initialize database tables and create admin user if needed."""
     Base.metadata.create_all(bind=engine)
+    migrate_db()  # Run migrations for new columns
     
     db = SessionLocal()
     try:

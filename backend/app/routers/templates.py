@@ -29,6 +29,8 @@ class EventTemplateOut(BaseModel):
     name: str
     tasks: List[TaskTemplateSchema]
     is_custom: bool = False  # True if from DB, False if hardcoded
+    is_modified: bool = False  # True if this is a modified version of a default template
+    can_reset: bool = False  # True if this template can be reset to default
 
     class Config:
         from_attributes = True
@@ -56,6 +58,8 @@ class WeekTemplateOut(BaseModel):
     description: Optional[str] = None
     events: List[WeekEventTemplateSchema]
     is_custom: bool = False
+    is_modified: bool = False  # True if this is a modified version of a default template
+    can_reset: bool = False  # True if this template can be reset to default
 
     class Config:
         from_attributes = True
@@ -218,14 +222,78 @@ DEFAULT_WEEK_TEMPLATES: List[WeekTemplateOut] = [
 
 # ============== HELPER FUNCTIONS ==============
 
+def _event_name_conflicts(name: str, db: Session, exclude_id: Optional[int] = None, original_default_id: Optional[str] = None) -> bool:
+    """Check if an event template name conflicts with existing templates.
+    
+    Args:
+        name: The name to check
+        db: Database session
+        exclude_id: DB template ID to exclude from check (for updates)
+        original_default_id: If provided, this is the default template being overridden,
+                            so its name is allowed
+    """
+    name_lower = name.lower()
+    
+    # Check against default templates (except the one being overridden)
+    for t in DEFAULT_EVENT_TEMPLATES:
+        if t.name.lower() == name_lower:
+            if original_default_id and t.id == original_default_id:
+                continue  # Allow using the same name as the default we're overriding
+            return True
+    
+    # Check against DB templates
+    query = db.query(EventTemplateModel).filter(EventTemplateModel.name.ilike(name))
+    if exclude_id:
+        query = query.filter(EventTemplateModel.id != exclude_id)
+    if query.first():
+        return True
+    
+    return False
+
+
+def _week_name_conflicts(name: str, db: Session, exclude_id: Optional[int] = None, original_default_id: Optional[str] = None) -> bool:
+    """Check if a week template name conflicts with existing templates."""
+    name_lower = name.lower()
+    
+    # Check against default templates
+    for t in DEFAULT_WEEK_TEMPLATES:
+        if t.name.lower() == name_lower:
+            if original_default_id and t.id == original_default_id:
+                continue
+            return True
+    
+    # Check against DB templates
+    query = db.query(WeekTemplateModel).filter(WeekTemplateModel.name.ilike(name))
+    if exclude_id:
+        query = query.filter(WeekTemplateModel.id != exclude_id)
+    if query.first():
+        return True
+    
+    return False
+
+
 def db_event_template_to_out(t: EventTemplateModel) -> EventTemplateOut:
     """Convert DB EventTemplate to output schema."""
     tasks = [TaskTemplateSchema(**task) for task in (t.tasks_json or [])]
+    
+    # If this overrides a default, use the default's ID (so it appears as the same template)
+    if t.overrides_default_id:
+        return EventTemplateOut(
+            id=t.overrides_default_id,
+            name=t.name,
+            tasks=tasks,
+            is_custom=False,  # It's still conceptually a "default" template
+            is_modified=True,  # But it's been modified
+            can_reset=True  # Can reset to original
+        )
+    
     return EventTemplateOut(
         id=f"db_{t.id}",
         name=t.name,
         tasks=tasks,
-        is_custom=True
+        is_custom=True,
+        is_modified=False,
+        can_reset=False
     )
 
 
@@ -239,23 +307,61 @@ def db_week_template_to_out(t: WeekTemplateModel) -> WeekTemplateOut:
         )
         for e in t.events
     ]
+    
+    # If this overrides a default, use the default's ID
+    if t.overrides_default_id:
+        return WeekTemplateOut(
+            id=t.overrides_default_id,
+            name=t.name,
+            description=t.description,
+            events=events,
+            is_custom=False,
+            is_modified=True,
+            can_reset=True
+        )
+    
     return WeekTemplateOut(
         id=f"db_{t.id}",
         name=t.name,
         description=t.description,
         events=events,
-        is_custom=True
+        is_custom=True,
+        is_modified=False,
+        can_reset=False
     )
 
 
+def get_default_event_template_by_id(template_id: str) -> Optional[EventTemplateOut]:
+    """Get a hardcoded default event template by ID."""
+    for t in DEFAULT_EVENT_TEMPLATES:
+        if t.id == template_id:
+            return t
+    return None
+
+
+def get_default_week_template_by_id(template_id: str) -> Optional[WeekTemplateOut]:
+    """Get a hardcoded default week template by ID."""
+    for t in DEFAULT_WEEK_TEMPLATES:
+        if t.id == template_id:
+            return t
+    return None
+
+
 def get_event_template_by_id(template_id: str, db: Session) -> Optional[EventTemplateOut]:
-    """Get event template by ID (either hardcoded or from DB)."""
-    # Check hardcoded first
+    """Get event template by ID (checks DB override first, then hardcoded, then custom DB)."""
+    # First check if there's a DB override for this ID
+    override = db.query(EventTemplateModel).filter(
+        EventTemplateModel.overrides_default_id == template_id
+    ).first()
+    if override:
+        return db_event_template_to_out(override)
+    
+    # Check hardcoded templates
     for t in DEFAULT_EVENT_TEMPLATES:
         if t.id == template_id:
             return t
     
-    # Check DB (ID format: db_<int>)
+    # Check DB custom templates (ID format: db_<int>)
     if template_id.startswith("db_"):
         db_id = int(template_id[3:])
         t = db.query(EventTemplateModel).filter(EventTemplateModel.id == db_id).first()
@@ -266,11 +372,20 @@ def get_event_template_by_id(template_id: str, db: Session) -> Optional[EventTem
 
 
 def get_week_template_by_id(template_id: str, db: Session) -> Optional[WeekTemplateOut]:
-    """Get week template by ID (either hardcoded or from DB)."""
+    """Get week template by ID (checks DB override first, then hardcoded, then custom DB)."""
+    # First check if there's a DB override for this ID
+    override = db.query(WeekTemplateModel).filter(
+        WeekTemplateModel.overrides_default_id == template_id
+    ).first()
+    if override:
+        return db_week_template_to_out(override)
+    
+    # Check hardcoded templates
     for t in DEFAULT_WEEK_TEMPLATES:
         if t.id == template_id:
             return t
     
+    # Check DB custom templates
     if template_id.startswith("db_"):
         db_id = int(template_id[3:])
         t = db.query(WeekTemplateModel).filter(WeekTemplateModel.id == db_id).first()
@@ -287,11 +402,32 @@ async def get_event_templates(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Get all event templates (hardcoded + custom from DB)."""
-    templates = list(DEFAULT_EVENT_TEMPLATES)
-    
+    """Get all event templates (hardcoded + custom from DB, with overrides merged)."""
+    # Get all DB templates indexed by what they override
     db_templates = db.query(EventTemplateModel).all()
-    for t in db_templates:
+    overrides = {t.overrides_default_id: t for t in db_templates if t.overrides_default_id}
+    custom_templates = [t for t in db_templates if not t.overrides_default_id]
+    
+    templates = []
+    
+    # Add default templates (or their overrides)
+    for default in DEFAULT_EVENT_TEMPLATES:
+        if default.id in overrides:
+            # Use the override instead
+            templates.append(db_event_template_to_out(overrides[default.id]))
+        else:
+            # Use the original default (with is_modified=False, can_reset=False)
+            templates.append(EventTemplateOut(
+                id=default.id,
+                name=default.name,
+                tasks=default.tasks,
+                is_custom=False,
+                is_modified=False,
+                can_reset=False
+            ))
+    
+    # Add custom DB templates
+    for t in custom_templates:
         templates.append(db_event_template_to_out(t))
     
     return templates
@@ -336,36 +472,131 @@ async def create_event_template(
 
 @router.put("/events/{template_id}", response_model=EventTemplateOut)
 async def update_event_template(
-    template_id: int,
+    template_id: str,
     data: EventTemplateUpdate,
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Update a custom event template."""
-    template = db.query(EventTemplateModel).filter(EventTemplateModel.id == template_id).first()
-    if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
+    """Update an event template (works for both default and custom templates)."""
+    # Check if it's a default template
+    default_template = get_default_event_template_by_id(template_id)
     
-    if data.name is not None:
-        template.name = data.name
-    if data.tasks is not None:
-        template.tasks_json = [t.model_dump() for t in data.tasks]
+    if default_template:
+        # It's a default template - check if override exists
+        override = db.query(EventTemplateModel).filter(
+            EventTemplateModel.overrides_default_id == template_id
+        ).first()
+        
+        if override:
+            # Update existing override
+            if data.name is not None and data.name != override.name:
+                # Check name doesn't conflict with other templates
+                if _event_name_conflicts(data.name, db, exclude_id=override.id, original_default_id=template_id):
+                    raise HTTPException(status_code=400, detail="Name conflicts with another template")
+                override.name = data.name
+            if data.tasks is not None:
+                override.tasks_json = [t.model_dump() for t in data.tasks]
+            db.commit()
+            db.refresh(override)
+            return db_event_template_to_out(override)
+        else:
+            # Create new override
+            new_name = data.name if data.name is not None else default_template.name
+            new_tasks = [t.model_dump() for t in data.tasks] if data.tasks is not None else [t.model_dump() for t in default_template.tasks]
+            
+            # Check name doesn't conflict (unless it's the same as the default we're overriding)
+            if data.name is not None and _event_name_conflicts(new_name, db, original_default_id=template_id):
+                raise HTTPException(status_code=400, detail="Name conflicts with another template")
+            
+            override = EventTemplateModel(
+                name=new_name,
+                tasks_json=new_tasks,
+                overrides_default_id=template_id
+            )
+            db.add(override)
+            db.commit()
+            db.refresh(override)
+            return db_event_template_to_out(override)
     
+    # Check if it's a custom DB template (db_<id>)
+    if template_id.startswith("db_"):
+        db_id = int(template_id[3:])
+        template = db.query(EventTemplateModel).filter(EventTemplateModel.id == db_id).first()
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        if data.name is not None and data.name != template.name:
+            # Check name doesn't conflict
+            if _event_name_conflicts(data.name, db, exclude_id=template.id):
+                raise HTTPException(status_code=400, detail="Name conflicts with another template")
+            template.name = data.name
+        if data.tasks is not None:
+            template.tasks_json = [t.model_dump() for t in data.tasks]
+        
+        db.commit()
+        db.refresh(template)
+        return db_event_template_to_out(template)
+    
+    raise HTTPException(status_code=404, detail="Template not found")
+
+
+@router.post("/events/{template_id}/reset", response_model=EventTemplateOut)
+async def reset_event_template(
+    template_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user)
+):
+    """Reset a modified default template back to its original state."""
+    # Check if this is a valid default template
+    default_template = get_default_event_template_by_id(template_id)
+    if not default_template:
+        raise HTTPException(status_code=400, detail="Can only reset default templates")
+    
+    # Find and delete the override
+    override = db.query(EventTemplateModel).filter(
+        EventTemplateModel.overrides_default_id == template_id
+    ).first()
+    
+    if not override:
+        raise HTTPException(status_code=400, detail="Template is not modified, nothing to reset")
+    
+    db.delete(override)
     db.commit()
-    db.refresh(template)
-    return db_event_template_to_out(template)
+    
+    # Return the original default template
+    return EventTemplateOut(
+        id=default_template.id,
+        name=default_template.name,
+        tasks=default_template.tasks,
+        is_custom=False,
+        is_modified=False,
+        can_reset=False
+    )
 
 
 @router.delete("/events/{template_id}")
 async def delete_event_template(
-    template_id: int,
+    template_id: str,
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Delete a custom event template."""
-    template = db.query(EventTemplateModel).filter(EventTemplateModel.id == template_id).first()
+    """Delete a custom event template (cannot delete default templates)."""
+    # Check if it's a default template
+    if get_default_event_template_by_id(template_id):
+        raise HTTPException(status_code=400, detail="Cannot delete default templates. Use reset to restore original.")
+    
+    # Must be a custom DB template
+    if not template_id.startswith("db_"):
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    db_id = int(template_id[3:])
+    template = db.query(EventTemplateModel).filter(EventTemplateModel.id == db_id).first()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
+    
+    # Don't allow deleting overrides via this endpoint
+    if template.overrides_default_id:
+        raise HTTPException(status_code=400, detail="Cannot delete default templates. Use reset to restore original.")
     
     db.delete(template)
     db.commit()
@@ -379,11 +610,31 @@ async def get_week_templates(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Get all week templates (hardcoded + custom from DB)."""
-    templates = list(DEFAULT_WEEK_TEMPLATES)
-    
+    """Get all week templates (hardcoded + custom from DB, with overrides merged)."""
+    # Get all DB templates indexed by what they override
     db_templates = db.query(WeekTemplateModel).all()
-    for t in db_templates:
+    overrides = {t.overrides_default_id: t for t in db_templates if t.overrides_default_id}
+    custom_templates = [t for t in db_templates if not t.overrides_default_id]
+    
+    templates = []
+    
+    # Add default templates (or their overrides)
+    for default in DEFAULT_WEEK_TEMPLATES:
+        if default.id in overrides:
+            templates.append(db_week_template_to_out(overrides[default.id]))
+        else:
+            templates.append(WeekTemplateOut(
+                id=default.id,
+                name=default.name,
+                description=default.description,
+                events=default.events,
+                is_custom=False,
+                is_modified=False,
+                can_reset=False
+            ))
+    
+    # Add custom DB templates
+    for t in custom_templates:
         templates.append(db_week_template_to_out(t))
     
     return templates
@@ -436,61 +687,173 @@ async def create_week_template(
     return db_week_template_to_out(template)
 
 
+def _save_week_template_events(db: Session, template_id: int, events: List[WeekEventTemplateSchema]):
+    """Helper to save week template events."""
+    for event_data in events:
+        db_event_id = None
+        event_template_id_str = None
+        
+        if event_data.event_template_id.startswith("db_"):
+            db_event_id = int(event_data.event_template_id[3:])
+        else:
+            event_template_id_str = event_data.event_template_id
+        
+        event = WeekTemplateEventModel(
+            week_template_id=template_id,
+            event_template_id=db_event_id,
+            event_template_id_str=event_template_id_str,
+            day_of_week=event_data.day_of_week,
+            default_time=event_data.default_time
+        )
+        db.add(event)
+
+
 @router.put("/weeks/{template_id}", response_model=WeekTemplateOut)
 async def update_week_template(
-    template_id: int,
+    template_id: str,
     data: WeekTemplateUpdate,
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Update a custom week template."""
-    template = db.query(WeekTemplateModel).filter(WeekTemplateModel.id == template_id).first()
-    if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
+    """Update a week template (works for both default and custom templates)."""
+    # Check if it's a default template
+    default_template = get_default_week_template_by_id(template_id)
     
-    if data.name is not None:
-        template.name = data.name
-    if data.description is not None:
-        template.description = data.description
-    
-    if data.events is not None:
-        db.query(WeekTemplateEventModel).filter(
-            WeekTemplateEventModel.week_template_id == template_id
-        ).delete()
+    if default_template:
+        # It's a default template - check if override exists
+        override = db.query(WeekTemplateModel).filter(
+            WeekTemplateModel.overrides_default_id == template_id
+        ).first()
         
-        for event_data in data.events:
-            db_event_id = None
-            event_template_id_str = None
+        if override:
+            # Update existing override
+            if data.name is not None and data.name != override.name:
+                if _week_name_conflicts(data.name, db, exclude_id=override.id, original_default_id=template_id):
+                    raise HTTPException(status_code=400, detail="Name conflicts with another template")
+                override.name = data.name
+            if data.description is not None:
+                override.description = data.description
             
-            if event_data.event_template_id.startswith("db_"):
-                db_event_id = int(event_data.event_template_id[3:])
-            else:
-                event_template_id_str = event_data.event_template_id
+            if data.events is not None:
+                # Clear existing events and add new ones
+                db.query(WeekTemplateEventModel).filter(
+                    WeekTemplateEventModel.week_template_id == override.id
+                ).delete()
+                _save_week_template_events(db, override.id, data.events)
             
-            event = WeekTemplateEventModel(
-                week_template_id=template.id,
-                event_template_id=db_event_id,
-                event_template_id_str=event_template_id_str,
-                day_of_week=event_data.day_of_week,
-                default_time=event_data.default_time
+            db.commit()
+            db.refresh(override)
+            return db_week_template_to_out(override)
+        else:
+            # Create new override
+            new_name = data.name if data.name is not None else default_template.name
+            new_description = data.description if data.description is not None else default_template.description
+            
+            # Check name doesn't conflict
+            if data.name is not None and _week_name_conflicts(new_name, db, original_default_id=template_id):
+                raise HTTPException(status_code=400, detail="Name conflicts with another template")
+            
+            override = WeekTemplateModel(
+                name=new_name,
+                description=new_description,
+                overrides_default_id=template_id
             )
-            db.add(event)
+            db.add(override)
+            db.flush()
+            
+            # Copy events from default or use provided ones
+            events_to_save = data.events if data.events is not None else default_template.events
+            _save_week_template_events(db, override.id, events_to_save)
+            
+            db.commit()
+            db.refresh(override)
+            return db_week_template_to_out(override)
     
+    # Check if it's a custom DB template (db_<id>)
+    if template_id.startswith("db_"):
+        db_id = int(template_id[3:])
+        template = db.query(WeekTemplateModel).filter(WeekTemplateModel.id == db_id).first()
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        if data.name is not None and data.name != template.name:
+            if _week_name_conflicts(data.name, db, exclude_id=template.id):
+                raise HTTPException(status_code=400, detail="Name conflicts with another template")
+            template.name = data.name
+        if data.description is not None:
+            template.description = data.description
+        
+        if data.events is not None:
+            db.query(WeekTemplateEventModel).filter(
+                WeekTemplateEventModel.week_template_id == db_id
+            ).delete()
+            _save_week_template_events(db, template.id, data.events)
+        
+        db.commit()
+        db.refresh(template)
+        return db_week_template_to_out(template)
+    
+    raise HTTPException(status_code=404, detail="Template not found")
+
+
+@router.post("/weeks/{template_id}/reset", response_model=WeekTemplateOut)
+async def reset_week_template(
+    template_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user)
+):
+    """Reset a modified default week template back to its original state."""
+    # Check if this is a valid default template
+    default_template = get_default_week_template_by_id(template_id)
+    if not default_template:
+        raise HTTPException(status_code=400, detail="Can only reset default templates")
+    
+    # Find and delete the override
+    override = db.query(WeekTemplateModel).filter(
+        WeekTemplateModel.overrides_default_id == template_id
+    ).first()
+    
+    if not override:
+        raise HTTPException(status_code=400, detail="Template is not modified, nothing to reset")
+    
+    db.delete(override)
     db.commit()
-    db.refresh(template)
-    return db_week_template_to_out(template)
+    
+    # Return the original default template
+    return WeekTemplateOut(
+        id=default_template.id,
+        name=default_template.name,
+        description=default_template.description,
+        events=default_template.events,
+        is_custom=False,
+        is_modified=False,
+        can_reset=False
+    )
 
 
 @router.delete("/weeks/{template_id}")
 async def delete_week_template(
-    template_id: int,
+    template_id: str,
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user)
 ):
-    """Delete a custom week template."""
-    template = db.query(WeekTemplateModel).filter(WeekTemplateModel.id == template_id).first()
+    """Delete a custom week template (cannot delete default templates)."""
+    # Check if it's a default template
+    if get_default_week_template_by_id(template_id):
+        raise HTTPException(status_code=400, detail="Cannot delete default templates. Use reset to restore original.")
+    
+    # Must be a custom DB template
+    if not template_id.startswith("db_"):
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    db_id = int(template_id[3:])
+    template = db.query(WeekTemplateModel).filter(WeekTemplateModel.id == db_id).first()
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
+    
+    # Don't allow deleting overrides via this endpoint
+    if template.overrides_default_id:
+        raise HTTPException(status_code=400, detail="Cannot delete default templates. Use reset to restore original.")
     
     db.delete(template)
     db.commit()
